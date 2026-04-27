@@ -13,7 +13,7 @@ function varargout = DPABI_InputPreparer(varargin)
 %-----------------------------------------------------------
 % Mail to Author:  <a href="larslu@foxmail.com">Bin Lu</a> 
 
-% Last Modified by GUIDE v2.5 17-Mar-2026 17:50:15
+% Last Modified by GUIDE v2.5 27-Apr-2026 21:49:56
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -78,51 +78,61 @@ handles.Cfg.IsOrganizeDwi = 0;
 handles.Cfg.IsOrganizeFieldFun = 0;
 handles.Cfg.IsOrganizeFieldDwi = 0;
 handles.Cfg.FunSessionNumber = 1;
-handles.Cfg.IsMultiEchoFunAll = zeros(handles.Cfg.FunSessionNumber,1);
 handles.Cfg.FieldFunFolderNumber = 1;
 handles.Cfg.FieldDwiFolderNumber = 1;
+handles.Cfg.IsMultiEchoFunAll = zeros(handles.Cfg.FunSessionNumber,1);
+handles.Cfg.IsUIH5T = 0;
 handles.Cfg.SeriesName.T1 = '';
+handles.Cfg.SeriesName.T1Plus = {};
 handles.Cfg.SeriesName.T2 = '';
 handles.Cfg.SeriesName.Dwi = '';
 handles.Cfg.SeriesName.FieldFun = {};
 handles.Cfg.SeriesName.FieldDwi = {};
 handles.Cfg.SeriesName.FunAll = {};
 handles.Cfg.SeriesIndex.T1 = 1;
+handles.Cfg.SeriesIndex.T1Plus = [1];
 handles.Cfg.SeriesIndex.T2 = 1;
 handles.Cfg.SeriesIndex.Dwi = 1;
 handles.Cfg.SeriesIndex.FieldFun = [1];
 handles.Cfg.SeriesIndex.FieldDwi = [1];
 handles.Cfg.SeriesIndex.FunAll = [1];
 handles.Cfg.SeriesFileNumber.List.T1 = 0;
+handles.Cfg.SeriesFileNumber.List.T1Plus = {0};
 handles.Cfg.SeriesFileNumber.List.T2 = 0;
 handles.Cfg.SeriesFileNumber.List.Dwi = 0;
 handles.Cfg.SeriesFileNumber.List.FieldFun = {0};
 handles.Cfg.SeriesFileNumber.List.FieldDwi = {0};
 handles.Cfg.SeriesFileNumber.List.FunAll = {0};
 handles.Cfg.SeriesFileNumber.Flag.T1 = 1;
+handles.Cfg.SeriesFileNumber.Flag.T1Plus = [1];
 handles.Cfg.SeriesFileNumber.Flag.T2 = 1;
 handles.Cfg.SeriesFileNumber.Flag.Dwi = 1;
 handles.Cfg.SeriesFileNumber.Flag.FieldFun = [1];
 handles.Cfg.SeriesFileNumber.Flag.FieldDwi = [1];
 handles.Cfg.SeriesFileNumber.Flag.FunAll = [1];
 handles.Cfg.SeriesFileNumber.LowLimitMode.T1 = 0; % Add lower limit mode for setting number of files for a series, Bin Lu, 20220919
+handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus = {0};
 handles.Cfg.SeriesFileNumber.LowLimitMode.T2 = 0; 
 handles.Cfg.SeriesFileNumber.LowLimitMode.Dwi = 0;
 handles.Cfg.SeriesFileNumber.LowLimitMode.FieldFun = {0};
 handles.Cfg.SeriesFileNumber.LowLimitMode.FieldDwi = {0};
 handles.Cfg.SeriesFileNumber.LowLimitMode.FunAll = {0};
 handles.Cfg.SeriesFileNumber.LowThreshold.T1 = 0; % Add lower threshold for setting number of files for a series, Bin Lu, 20220919
+handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus = {0};
 handles.Cfg.SeriesFileNumber.LowThreshold.T2 = 0;
 handles.Cfg.SeriesFileNumber.LowThreshold.Dwi = 0;
 handles.Cfg.SeriesFileNumber.LowThreshold.FieldFun = {0};
 handles.Cfg.SeriesFileNumber.LowThreshold.FieldDwi = {0};
 handles.Cfg.SeriesFileNumber.LowThreshold.FunAll = {0};
 handles.Cfg.SeriesFileNumber.Percent.T1 = 0; % Record percentage of each type number of files for a series, Bin Lu, 20220919
+handles.Cfg.SeriesFileNumber.Percent.T1Plus = {[0]};
 handles.Cfg.SeriesFileNumber.Percent.T2 = 0;
 handles.Cfg.SeriesFileNumber.Percent.Dwi = 0;
 handles.Cfg.SeriesFileNumber.Percent.FieldFun = {[0]};
 handles.Cfg.SeriesFileNumber.Percent.FieldDwi = {[0]};
 handles.Cfg.SeriesFileNumber.Percent.FunAll = {[0]};
+handles.Cfg.SxT1PlusList = {'eT1W','TI2'};
+handles.Cfg.SxT1PlusFlag = 1;
 handles.Cfg.SxFunRawList = {'FunRaw'};
 handles.Cfg.SxFunRawFlag = 1;
 handles.Cfg.SxFieldFunList = {'FieldMap_Folder1'};
@@ -968,7 +978,12 @@ function popupmenuT1FileNumber_Callback(hObject, eventdata, handles)
 % hObject    handle to popupmenuT1FileNumber (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-handles.Cfg.SeriesFileNumber.Flag.T1 = get(handles.popupmenuT1FileNumber,'Value');
+if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+    SessionFlag = handles.Cfg.SxT1PlusFlag;
+    handles.Cfg.SeriesFileNumber.Flag.T1Plus(SessionFlag) = get(handles.popupmenuT1FileNumber,'Value');
+else
+    handles.Cfg.SeriesFileNumber.Flag.T1 = get(handles.popupmenuT1FileNumber,'Value');
+end
 guidata(hObject,handles);
 % Hints: contents = cellstr(get(hObject,'String')) returns popupmenuT1FileNumber contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from popupmenuT1FileNumber
@@ -1099,24 +1114,43 @@ end
 % --- Executes on selection change in popupmenuT1.
 function popupmenuT1_Callback(hObject, eventdata, handles)
 % hObject    handle to popupmenuT1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-handles.Cfg.SeriesIndex.T1 = get(handles.popupmenuT1,'Value');
-set(handles.popupmenuT1FileNumber,'String','Computing...'); 
-drawnow;
-handles.Cfg.SeriesName.T1 = handles.Cfg.Demo.SeriesNames{handles.Cfg.SeriesIndex.T1};
-[handles.Cfg.SeriesFileNumber.List.T1,Percentage] = CheckFileNumber(hObject, handles,handles.Cfg.SeriesIndex.T1);
-handles.Cfg.SeriesFileNumber.Flag.T1 = 1;
-handles.Cfg.SeriesFileNumber.Percent.T1 = Percentage;
-% Added 20210722, add percentage info to reduce wrong selections
-DisplayString = cellfun(@(Num,Per) sprintf('%d (%.0f%%)',Num,Per*100),num2cell(handles.Cfg.SeriesFileNumber.List.T1),num2cell(Percentage),'UniformOutput',false);
-set(handles.popupmenuT1FileNumber,...
-    'String',DisplayString,...
-    'Value',handles.Cfg.SeriesFileNumber.Flag.T1,...
-    'Enable','on');
-guidata(hObject,handles);
-% Hints: contents = cellstr(get(hObject,'String')) returns popupmenuT1 contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from popupmenuT1
+% If UIH5T mode is enabled, popupmenuT1 is multiplexed to configure eT1W/TI2 according to popupmenuSxT1Plus.
+if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+    % Ensure structures
+    if ~isfield(handles.Cfg,'SxT1PlusList') || isempty(handles.Cfg.SxT1PlusList)
+        handles.Cfg.SxT1PlusList = {'eT1W','TI2'};
+    end
+    SessionFlag = handles.Cfg.SxT1PlusFlag;
+    handles.Cfg.SeriesIndex.T1Plus(SessionFlag) = get(handles.popupmenuT1,'Value');
+    handles.Cfg.SeriesName.T1Plus{SessionFlag} = handles.Cfg.Demo.SeriesNames{handles.Cfg.SeriesIndex.T1Plus(SessionFlag)};
+    set(handles.popupmenuT1FileNumber,'String','Computing...');
+    drawnow;
+    [handles.Cfg.SeriesFileNumber.List.T1Plus{SessionFlag},Percentage] = CheckFileNumber(hObject, handles,handles.Cfg.SeriesIndex.T1Plus(SessionFlag));
+    handles.Cfg.SeriesFileNumber.Flag.T1Plus(SessionFlag) = 1;
+    handles.Cfg.SeriesFileNumber.Percent.T1Plus{SessionFlag} = Percentage;
+    DisplayString = cellfun(@(Num,Per) sprintf('%d (%.0f%%)',Num,Per*100),...
+        num2cell(handles.Cfg.SeriesFileNumber.List.T1Plus{SessionFlag}),num2cell(Percentage),'UniformOutput',false);
+    set(handles.popupmenuT1FileNumber,...
+        'String',DisplayString,...
+        'Value',handles.Cfg.SeriesFileNumber.Flag.T1Plus(SessionFlag),...
+        'Enable','on');
+    guidata(hObject,handles);
+%     UpdateDisplay(handles);
+else
+    handles.Cfg.SeriesIndex.T1 = get(handles.popupmenuT1,'Value');
+    set(handles.popupmenuT1FileNumber,'String','Computing...'); 
+    drawnow;
+    handles.Cfg.SeriesName.T1 = handles.Cfg.Demo.SeriesNames{handles.Cfg.SeriesIndex.T1};
+    [handles.Cfg.SeriesFileNumber.List.T1,Percentage] = CheckFileNumber(hObject, handles,handles.Cfg.SeriesIndex.T1);
+    handles.Cfg.SeriesFileNumber.Flag.T1 = 1;
+    handles.Cfg.SeriesFileNumber.Percent.T1 = Percentage;
+    DisplayString = cellfun(@(Num,Per) sprintf('%d (%.0f%%)',Num,Per*100),num2cell(handles.Cfg.SeriesFileNumber.List.T1),num2cell(Percentage),'UniformOutput',false);
+    set(handles.popupmenuT1FileNumber,...
+        'String',DisplayString,...
+        'Value',handles.Cfg.SeriesFileNumber.Flag.T1,...
+        'Enable','on');
+    guidata(hObject,handles);
+end
 
 
 % --- Executes during object creation, after setting all properties.
@@ -1420,6 +1454,17 @@ switch Flag
         handles.Cfg.SxFieldDwiRawList = {'FieldMap_Folder1'};
         handles.Cfg.SxFieldDwiRawFlag = 1;
         handles.Cfg.IsMultiEchoFunAll = zeros(handles.Cfg.FunSessionNumber,1);
+        % UIH5T style T1 (eT1W + TI2)
+        handles.Cfg.IsUIH5T = 0; % checkboxUIH5T default unchecked
+        handles.Cfg.SxT1PlusList = {'eT1W','TI2'}; % extensible
+        handles.Cfg.SxT1PlusFlag = 1;
+        handles.Cfg.SeriesName.T1Plus = cell(numel(handles.Cfg.SxT1PlusList),1);
+        handles.Cfg.SeriesIndex.T1Plus = ones(numel(handles.Cfg.SxT1PlusList),1);
+        handles.Cfg.SeriesFileNumber.List.T1Plus = cell(1,numel(handles.Cfg.SxT1PlusList)); handles.Cfg.SeriesFileNumber.List.T1Plus(:) = {[0]};
+        handles.Cfg.SeriesFileNumber.Flag.T1Plus = ones(numel(handles.Cfg.SxT1PlusList),1);
+        handles.Cfg.SeriesFileNumber.Percent.T1Plus = cell(1,numel(handles.Cfg.SxT1PlusList)); handles.Cfg.SeriesFileNumber.Percent.T1Plus(:) = {[0]};
+        handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus = cell(1,numel(handles.Cfg.SxT1PlusList)); handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus(:) = {[0]};
+        handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus = cell(1,numel(handles.Cfg.SxT1PlusList)); handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus(:) = {[0]};
     case 'Fun'
         handles.Cfg.SxFunRawList = cell(1,handles.Cfg.FunSessionNumber);
         for iSession = 1:handles.Cfg.FunSessionNumber
@@ -1635,7 +1680,11 @@ guidata(hObject,handles);
 function OrganizeImages(hObject, handles)
 %% Create MR image list for copying files to T1Raw, FunRaw, DwiRaw ...
 % Confirm MR series for all sessions have been allocated
-AnatMiss = isempty(handles.Cfg.SeriesName.T1);
+if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+    AnatMiss = isempty(handles.Cfg.SeriesName.T1Plus);
+else
+    AnatMiss = isempty(handles.Cfg.SeriesName.T1);
+end
 
 if handles.Cfg.IsOrganizeFieldFun == 1 
     FieldFunMiss = cellfun(@isempty,handles.Cfg.SeriesName.FieldFun);
@@ -1675,9 +1724,20 @@ if AnatMiss || DwiMiss || FunAllMiss || FieldFunMiss || FieldDwiMiss || T2Miss
 end
 
 %% For data from DPABI_DicomSorter and xnat-like system, the index should be removed here to match more series
-Index = strfind(handles.Cfg.SeriesName.T1,'_');
-if ~isempty(Index) && ~isnan(str2double(handles.Cfg.SeriesName.T1(1:Index(1)-1)))%% Is so, the working dir was derived from DPABI_DicomSorter or xnat-like system, series number should be removed.
-    SeriesT1 = handles.Cfg.SeriesName.T1(Index(1)+1:end);
+%% Is so, the working dir was derived from DPABI_DicomSorter or xnat-like system, series number should be removed.
+if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+    Index = strfind(handles.Cfg.SeriesName.T1Plus{1},'_'); %eT1W
+    XnatFlag = ~isnan(str2double(handles.Cfg.SeriesName.T1Plus{1}(1:Index(1)-1)));
+else
+    Index = strfind(handles.Cfg.SeriesName.T1,'_');
+    XnatFlag = ~isnan(str2double(handles.Cfg.SeriesName.T1(1:Index(1)-1)));
+end
+if XnatFlag
+    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+        SeriesT1Plus = cellfun(@(Series) Series(Index(1)+1:end),handles.Cfg.SeriesName.T1Plus,'UniformOutput',0);
+    else
+        SeriesT1 = handles.Cfg.SeriesName.T1(Index(1)+1:end);
+    end
     if ~handles.Cfg.AnatOnly
         if handles.Cfg.IsOrganizeT2
             SeriesT2 = handles.Cfg.SeriesName.T2(Index(1)+1:end);
@@ -1696,7 +1756,11 @@ if ~isempty(Index) && ~isnan(str2double(handles.Cfg.SeriesName.T1(1:Index(1)-1))
         end
     end
 else
-    SeriesT1 = handles.Cfg.SeriesName.T1;
+    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+        SeriesT1Plus = handles.Cfg.SeriesName.T1Plus;
+    else
+        SeriesT1 = handles.Cfg.SeriesName.T1;
+    end
     if ~handles.Cfg.AnatOnly
         if handles.Cfg.IsOrganizeT2
             SeriesT2 = handles.Cfg.SeriesName.T2;
@@ -1724,8 +1788,15 @@ if handles.Cfg.InputLayout == 1 % Participant first
         {SubList.isdir}, {SubList.name});
     SubList=SubList(Index);
     SubString={SubList(:).name}';
-    T1List = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesT1]),SubString,'UniformOutput',0);
-    T1String = cellfun(@(SubSeries) {SubSeries(:).name}',T1List,'UniformOutput',0);
+    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+        for iSession = 1:length(handles.Cfg.SxT1PlusList)
+            T1PlusList{iSession} = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesT1Plus{iSession}]),SubString,'UniformOutput',0);
+            T1PlusString{iSession}  = cellfun(@(SubSeries) {SubSeries(:).name}',T1PlusList{iSession},'UniformOutput',0);
+        end
+    else
+        T1List = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesT1]),SubString,'UniformOutput',0);
+        T1String = cellfun(@(SubSeries) {SubSeries(:).name}',T1List,'UniformOutput',0);
+    end
     if ~handles.Cfg.AnatOnly
         if handles.Cfg.IsOrganizeT2
             T2List = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesT2]),SubString,'UniformOutput',0);
@@ -1755,8 +1826,13 @@ if handles.Cfg.InputLayout == 1 % Participant first
         end
     end
 else % Series first
-    SeriesListT1 = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesT1]);
-    SeriesListT1={SeriesListT1(:).name}';
+    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+        SeriesListT1 = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesT1Plus{1}]); % eT1W
+        SeriesListT1={SeriesListT1(:).name}';
+    else
+        SeriesListT1 = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesT1]);
+        SeriesListT1={SeriesListT1(:).name}';
+    end
     SubList = cellfun(@(Series) dir([handles.Cfg.WorkingDir,filesep,Series]),SeriesListT1,'UniformOutput',0);
     SubList = cellfun(@(Sub) {Sub(:).name}',SubList,'UniformOutput',0);
     SubString = cat(1,SubList{:});
@@ -1764,11 +1840,22 @@ else % Series first
     Index=cellfun(@(NotDot) ~strcmpi(NotDot, '.') && ~strcmpi(NotDot, '..') && ~strcmpi(NotDot, '.DS_Store'), SubString);
     SubString = SubString(Index);
     
-    T1ListTemp = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesT1]);
-    T1ListTemp={T1ListTemp(:).name}';
-    for iSub = 1:length(SubString)
-        Index = cellfun(@(Series) exist([handles.Cfg.WorkingDir,filesep,Series,filesep,SubString{iSub}],'dir'),T1ListTemp);
-        T1String{iSub,1} = T1ListTemp(find(Index));
+    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+        for iSession = 1:length(handles.Cfg.SxT1PlusList)
+            T1PlusListTemp = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesT1Plus{iSession}]);
+            T1PlusListTemp={T1PlusListTemp(:).name}';
+            for iSub = 1:length(SubString)
+                Index = cellfun(@(Series) exist([handles.Cfg.WorkingDir,filesep,Series,filesep,SubString{iSub}],'dir'),T1PlusListTemp);
+                T1PlusString{iSession}{iSub,1} = T1PlusListTemp(find(Index));
+            end
+        end
+    else
+        T1ListTemp = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesT1]);
+        T1ListTemp={T1ListTemp(:).name}';
+        for iSub = 1:length(SubString)
+            Index = cellfun(@(Series) exist([handles.Cfg.WorkingDir,filesep,Series,filesep,SubString{iSub}],'dir'),T1ListTemp);
+            T1String{iSub,1} = T1ListTemp(find(Index));
+        end
     end
     if ~handles.Cfg.AnatOnly
         if handles.Cfg.IsOrganizeT2
@@ -1821,16 +1908,29 @@ else % Series first
 end
 
 %% Unnest the cell data of Session Lists
-MaxColumn = max(cellfun('length', T1String));  % in case the numbers of elements in each cell are different (in that case, concatenate functional sessions will goes wrong)
-MinColumn = min(cellfun('length', T1String));
-if MaxColumn==1 && MinColumn==1
-    T1String = cellfun(@(Series) Series{1},T1String, 'UniformOutput', false); %unnest the cell
+if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+    for iSession = 1:length(handles.Cfg.SxT1PlusList)
+        MaxColumn = max(cellfun('length', T1PlusString{iSession} ));
+        MinColumn = min(cellfun('length', T1PlusString{iSession} ));
+        if MaxColumn == 1 && MinColumn == 1
+            T1PlusString{iSession} = cellfun(@(Series) Series{1},T1PlusString{iSession}, 'UniformOutput', false); %unnest the cell
+        else
+            T1PlusString{iSession}  = cellfun(@(OneString) [OneString; repmat({'padding'},MaxColumn-length(OneString),1)], T1PlusString{iSession} , 'UniformOutput', false); % pad each cell.
+            T1PlusString{iSession}  = cat(2,T1PlusString{iSession} {:})';
+        end
+        SubString_T1Plus{iSession} = repmat(SubString,1,size(T1PlusString{iSession},2));
+    end
 else
-    T1String = cellfun(@(OneString) [OneString; repmat({'padding'},MaxColumn-length(OneString),1)], T1String, 'UniformOutput', false); % pad each cell.
-    T1String = cat(2,T1String{:})';    
+    MaxColumn = max(cellfun('length', T1String));  % in case the numbers of elements in each cell are different (in that case, concatenate functional sessions will goes wrong)
+    MinColumn = min(cellfun('length', T1String));
+    if MaxColumn==1 && MinColumn==1
+        T1String = cellfun(@(Series) Series{1},T1String, 'UniformOutput', false); %unnest the cell
+    else
+        T1String = cellfun(@(OneString) [OneString; repmat({'padding'},MaxColumn-length(OneString),1)], T1String, 'UniformOutput', false); % pad each cell.
+        T1String = cat(2,T1String{:})';
+    end
+    SubString_T1 = repmat(SubString,1,size(T1String,2));
 end
-SubString_T1 = repmat(SubString,1,size(T1String,2));
-
 if ~handles.Cfg.AnatOnly
     if handles.Cfg.IsOrganizeT2
         MaxColumn = max(cellfun('length', T2String));
@@ -1899,29 +1999,57 @@ end
 if handles.Cfg.InputLayout == 1 % Participant first
     % T1 series status 
     disp([newline,'Eliminating the deficient T1-weighted series for T1Raw sessions ...']);
-    if handles.Cfg.SeriesFileNumber.LowLimitMode.T1 % Do not fix the number of dicom files, setting a lower threshold for the number. Bin Lu, 20220921.
-        nFileT1 = handles.Cfg.SeriesFileNumber.LowThreshold.T1;
-        try
-            T1Status = cellfun(@(Series,Sub) ...
-                (length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileT1)>=0,...
-                T1String,SubString_T1,'UniformOutput', false);
-        catch
-            T1Status = cellfun(@(Series,Sub) ...
-                (length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileT1)>=0,...
-                T1String,SubString_T1,'UniformOutput', false);
+    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+        for iSession = 1:length(handles.Cfg.SxT1PlusList)
+            if handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus{iSession} % Do not fix the number of dicom files, setting a lower threshold for the number. Bin Lu, 20220921.
+                nFileT1Plus = handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus{iSession};
+                try
+                    T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
+                        (length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileT1Plus)>=0,...
+                        T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
+                catch
+                    T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
+                        (length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileT1Plus)>=0,...
+                        T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
+                end
+            else
+                nFileT1Plus = handles.Cfg.SeriesFileNumber.List.T1Plus{iSession}(handles.Cfg.SeriesFileNumber.Flag.T1Plus(iSession));
+                try
+                    T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
+                        ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileT1Plus),...
+                        T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
+                catch
+                    T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
+                        ~(length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileT1Plus),...
+                        T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
+                end
+            end
         end
-    else 
-        nFileT1 = handles.Cfg.SeriesFileNumber.List.T1(handles.Cfg.SeriesFileNumber.Flag.T1);
-        try
-            T1Status = cellfun(@(Series,Sub) ...
-                ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileT1),...
-                T1String,SubString_T1,'UniformOutput', false);
-        catch
-            T1Status = cellfun(@(Series,Sub) ...
-                ~(length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileT1),...
-                T1String,SubString_T1,'UniformOutput', false);
+    else
+        if handles.Cfg.SeriesFileNumber.LowLimitMode.T1 % Do not fix the number of dicom files, setting a lower threshold for the number. Bin Lu, 20220921.
+            nFileT1 = handles.Cfg.SeriesFileNumber.LowThreshold.T1;
+            try
+                T1Status = cellfun(@(Series,Sub) ...
+                    (length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileT1)>=0,...
+                    T1String,SubString_T1,'UniformOutput', false);
+            catch
+                T1Status = cellfun(@(Series,Sub) ...
+                    (length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileT1)>=0,...
+                    T1String,SubString_T1,'UniformOutput', false);
+            end
+        else
+            nFileT1 = handles.Cfg.SeriesFileNumber.List.T1(handles.Cfg.SeriesFileNumber.Flag.T1);
+            try
+                T1Status = cellfun(@(Series,Sub) ...
+                    ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileT1),...
+                    T1String,SubString_T1,'UniformOutput', false);
+            catch
+                T1Status = cellfun(@(Series,Sub) ...
+                    ~(length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileT1),...
+                    T1String,SubString_T1,'UniformOutput', false);
+            end
         end
-    end   
+    end
     if ~handles.Cfg.AnatOnly
         if handles.Cfg.IsOrganizeT2
             disp([newline,'Eliminating the deficient T2-weighted series for T2Raw sessions ...']);
@@ -2062,16 +2190,46 @@ if handles.Cfg.InputLayout == 1 % Participant first
     end
 else % Series first
     % T1 series status 
-    if handles.Cfg.SeriesFileNumber.LowLimitMode.T1 % Do not fix the number of dicom files, setting a lower threshold for the number. Bin Lu, 20220921.
-        nFileT1 = handles.Cfg.SeriesFileNumber.LowThreshold.T1;
-        T1Status = cellfun(@(Series,Sub) ...
-            (length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileT1)>=0,...
-            T1String,SubString_T1,'UniformOutput', false);
+    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+        if handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus{iSession} % Do not fix the number of dicom files, setting a lower threshold for the number. Bin Lu, 20220921.
+            for iSession = 1:length(handles.Cfg.SxT1PlusList)
+                nFileT1Plus = handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus{iSession};
+                try
+                    T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
+                        (length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileT1Plus)>=0,...
+                        T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
+                catch
+                    T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
+                        (length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileT1Plus)>=0,...
+                        T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
+                end
+            end
+        else
+            for iSession = 1:length(handles.Cfg.SxT1PlusList)
+                nFileT1Plus = handles.Cfg.SeriesFileNumber.List.T1Plus{iSession}(handles.Cfg.SeriesFileNumber.Flag.T1Plus(iSession));
+                try
+                    T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
+                        ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileT1Plus),...
+                        T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
+                catch
+                    T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
+                        ~(length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileT1Plus),...
+                        T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
+                end
+            end
+        end
     else
-        nFileT1 = handles.Cfg.SeriesFileNumber.List.T1(handles.Cfg.SeriesFileNumber.Flag.T1);
-        T1Status = cellfun(@(Series,Sub) ...
-            ~(length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileT1),...
-            T1String,SubString_T1,'UniformOutput', false);
+        if handles.Cfg.SeriesFileNumber.LowLimitMode.T1 % Do not fix the number of dicom files, setting a lower threshold for the number. Bin Lu, 20220921.
+            nFileT1 = handles.Cfg.SeriesFileNumber.LowThreshold.T1;
+            T1Status = cellfun(@(Series,Sub) ...
+                (length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileT1)>=0,...
+                T1String,SubString_T1,'UniformOutput', false);
+        else
+            nFileT1 = handles.Cfg.SeriesFileNumber.List.T1(handles.Cfg.SeriesFileNumber.Flag.T1);
+            T1Status = cellfun(@(Series,Sub) ...
+                ~(length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileT1),...
+                T1String,SubString_T1,'UniformOutput', false);
+        end
     end
     if ~handles.Cfg.AnatOnly
         if handles.Cfg.IsOrganizeT2
@@ -2191,7 +2349,12 @@ else % Series first
 end
 
 %% Confirm each session by user if necessary
-T1InputDir = cell(length(SubString),1);
+if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+    T1PlusInputDir = cell(length(handles.Cfg.SxT1PlusList),1);
+    T1PlusInputDir = cellfun(@(Session) cell(length(SubString),1),T1PlusInputDir,'UniformOutput', false);
+else
+    T1InputDir = cell(length(SubString),1);
+end
 if ~handles.Cfg.AnatOnly
     if handles.Cfg.IsOrganizeT2
         T2InputDir = cell(length(SubString),1);
@@ -2216,18 +2379,37 @@ end
 if handles.Cfg.InputLayout == 1 % Participant first
     for iSub = 1:length(SubString) 
         % T1Raw
-        Index = find([T1Status{iSub,:}]);
-        if ~isempty(Index)
-            if length(Index) > 1 % && ~handles.Cfg.AlwaysLatterSeries 
-                SeriesList = T1String(iSub,Index)';
-                Selection = ManuallySelectSeries({'T1Raw'},SubString{iSub},SeriesList,'Template1');
-%                 handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
-                %ManuallySelectSeries({'FunRaw';'S2_FunRaw'},'BinLu',{'Series1';'Series2';'Series3'},'Template1');
-                Index = [];
-                Index = Selection.Results(1)-1; % Minus "please select" line
-                T1InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Index}];
-            else
-                T1InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,T1String{iSub,Index(end)}];
+        if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+            for iSession = 1:length(handles.Cfg.SxT1PlusList)
+                Index = find([T1PlusStatus{iSession}{iSub,:}]);
+                if ~isempty(Index)
+                    % The only exception is that some DPABI Sessions might correspond to multiple Series (for example, if there was big head motion during the first scan, leading to a second scan).
+                    % In such cases, we have to let users manually choose which one to use (based on their experimental records or someting).
+                    if length(Index) > 1
+                        SeriesList = T1PlusString{iSession}(iSub,Index)';
+                        Selection = ManuallySelectSeries(handles.Cfg.SxT1PlusList(iSession),SubString{iSub},SeriesList,'Template1');
+                        Index = [];
+                        Index = Selection.Results(1)-1; % Minus "please select" line
+                        T1PlusInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Index}];
+                    else
+                        T1PlusInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,T1PlusString{iSession}{iSub,Index(end)}];
+                    end
+                end
+            end
+        else
+            Index = find([T1Status{iSub,:}]);
+            if ~isempty(Index)
+                if length(Index) > 1 % && ~handles.Cfg.AlwaysLatterSeries
+                    SeriesList = T1String(iSub,Index)';
+                    Selection = ManuallySelectSeries({'T1Raw'},SubString{iSub},SeriesList,'Template1');
+                    %                 handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
+                    %ManuallySelectSeries({'FunRaw';'S2_FunRaw'},'BinLu',{'Series1';'Series2';'Series3'},'Template1');
+                    Index = [];
+                    Index = Selection.Results(1)-1; % Minus "please select" line
+                    T1InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Index}];
+                else
+                    T1InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,T1String{iSub,Index(end)}];
+                end
             end
         end
 
@@ -2465,18 +2647,38 @@ if handles.Cfg.InputLayout == 1 % Participant first
 else % series first
     for iSub = 1:length(SubString) 
         % T1Raw
-        Index = find([T1Status{iSub,:}]);
-        if ~isempty(Index)
-            if length(Index) > 1 % && ~handles.Cfg.AlwaysLatterSeries 
-                SeriesList = T1String(iSub,Index)';
-                Selection = ManuallySelectSeries({'T1Raw'},SubString{iSub},SeriesList,'Template1');
-%                 handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
-                %ManuallySelectSeries({'FunRaw';'S2_FunRaw'},'BinLu',{'Series1';'Series2';'Series3'},'Template1');
-                Index = [];
-                Index = Selection.Results(1)-1; % Minus "please select" line
-                T1InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Index},filesep,SubString{iSub}];
-            else
-                T1InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,T1String{iSub,Index(end)},filesep,SubString{iSub}];
+        if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+            for iSession = 1:length(handles.Cfg.SxT1PlusList)
+                Index = find([T1PlusStatus{iSession}{iSub,:}]);
+                if ~isempty(Index)
+                    % The only exception is that some DPABI Sessions might correspond to multiple Series (for example, if there was big head motion during the first scan, leading to a second scan).
+                    % In such cases, we have to let users manually choose which one to use (based on their experimental records or someting).
+                    if length(Index) > 1 && ~(isfield(handles.Cfg,'IsMultiEchoT1Plus') && handles.Cfg.IsMultiEchoT1Plus(iSession)) % single-echo, do mannually setection later for multi-echo
+                        SeriesList = T1PlusString{iSession}(iSub,Index)';
+                        Selection = ManuallySelectSeries(handles.Cfg.SxT1PlusList(iSession),SubString{iSub},SeriesList,'Template1');
+                        %                             handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
+                        Index = [];
+                        Index = Selection.Results(1)-1; % Minus "please select" line
+                        T1PlusInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Index},filesep,SubString{iSub}];
+                    else
+                        T1PlusInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,T1PlusString{iSession}{iSub,Index(end)},filesep,SubString{iSub}];
+                    end
+                end
+            end
+        else
+            Index = find([T1Status{iSub,:}]);
+            if ~isempty(Index)
+                if length(Index) > 1 % && ~handles.Cfg.AlwaysLatterSeries
+                    SeriesList = T1String(iSub,Index)';
+                    Selection = ManuallySelectSeries({'T1Raw'},SubString{iSub},SeriesList,'Template1');
+                    %                 handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
+                    %ManuallySelectSeries({'FunRaw';'S2_FunRaw'},'BinLu',{'Series1';'Series2';'Series3'},'Template1');
+                    Index = [];
+                    Index = Selection.Results(1)-1; % Minus "please select" line
+                    T1InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Index},filesep,SubString{iSub}];
+                else
+                    T1InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,T1String{iSub,Index(end)},filesep,SubString{iSub}];
+                end
             end
         end
 
@@ -2876,6 +3078,7 @@ end
 SubStatus = ones(length(SubString),1);
 if handles.Cfg.IsPseudoSeries
     handles.Cfg.T1Pseudo = '';
+    handles.Cfg.T1PlusPseudo = cell(length(handles.Cfg.SxT1PlusList),1);
     handles.Cfg.T2Pseudo = '';
     handles.Cfg.DwiPseudo = '';
     handles.Cfg.FieldFunPseudo = cell(handles.Cfg.FieldFunFolderNumber,1);
@@ -2889,11 +3092,19 @@ if handles.Cfg.IsPseudoSeries
     end
         
     for iSub = 1:length(SubString)
-        if ~isempty(T1InputDir{iSub}) && ~strcmp(T1InputDir{iSub}(end-11:end),'PseudoSeries') && isempty(handles.Cfg.T1Pseudo)
-            handles.Cfg.T1Pseudo = T1InputDir{iSub};
-        elseif isempty(T1InputDir{iSub}) || strcmp(T1InputDir{iSub}(end-11:end),'PseudoSeries')
-            %             T1InputDir{iSub} = 'PseudoSeries'; 
-            SubStatus(iSub) = 0; % Revised 20210511, don't assign pseudo series for T1 MRI
+        if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+            if  ~isempty(T1PlusInputDir{iSession}{iSub}) && ~strcmp(T1PlusInputDir{iSession}{iSub}(end-11:end),'PseudoSeries') && isempty(handles.Cfg.T1PlusPseudo{iSession})
+                handles.Cfg.T1PlusPseudo{iSession} = T1PlusInputDir{iSession}{iSub};
+            elseif isempty(T1PlusInputDir{iSession}{iSub}) || strcmp(T1PlusInputDir{iSession}{iSub}(end-11:end),'PseudoSeries')
+                T1PlusInputDir{iSession}{iSub} = 'PseudoSeries';
+            end
+        else
+            if ~isempty(T1InputDir{iSub}) && ~strcmp(T1InputDir{iSub}(end-11:end),'PseudoSeries') && isempty(handles.Cfg.T1Pseudo)
+                handles.Cfg.T1Pseudo = T1InputDir{iSub};
+            elseif isempty(T1InputDir{iSub}) || strcmp(T1InputDir{iSub}(end-11:end),'PseudoSeries')
+                %             T1InputDir{iSub} = 'PseudoSeries';
+                SubStatus(iSub) = 0; % Revised 20210511, don't assign pseudo series for T1 MRI
+            end
         end
         if ~handles.Cfg.AnatOnly
             if handles.Cfg.IsOrganizeT2
@@ -2951,8 +3162,16 @@ if handles.Cfg.IsPseudoSeries
     end
 else % handles.Cfg.IsPseudoSeries == 0
     for iSub = 1:length(SubString)
-        if isempty(T1InputDir{iSub}) || strcmp(T1InputDir{iSub}(end-11:end),'PseudoSeries')
-            SubStatus(iSub) = 0;
+        if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+            for iSession = 1:length(handles.Cfg.SxT1PlusList)
+                if isempty(T1PlusInputDir{iSession}{iSub}) || strcmp(T1PlusInputDir{iSession}{iSub}(end-11:end),'PseudoSeries')
+                    SubStatus(iSub) = 0;
+                end
+            end
+        else
+            if isempty(T1InputDir{iSub}) || strcmp(T1InputDir{iSub}(end-11:end),'PseudoSeries')
+                SubStatus(iSub) = 0;
+            end
         end
         if ~handles.Cfg.AnatOnly
             if handles.Cfg.IsOrganizeT2
@@ -3003,7 +3222,13 @@ end
 disp([newline,'Start to copy files to DPABI-format starting directory ...']);
 handles.Cfg.SubList = SubString(find(SubStatus));
 handles.Cfg.SubListNew = cell(length(handles.Cfg.SubList),1);
-handles.Cfg.InputList.T1 = T1InputDir(find(SubStatus));
+if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+    for iSession = 1:length(handles.Cfg.SxT1PlusList)
+        handles.Cfg.InputList.T1Plus{iSession} = T1PlusInputDir{iSession}(find(SubStatus));
+    end
+else
+    handles.Cfg.InputList.T1 = T1InputDir(find(SubStatus));
+end
 if ~handles.Cfg.AnatOnly
     if handles.Cfg.IsOrganizeT2
         handles.Cfg.InputList.T2 =T2InputDir(find(SubStatus));
@@ -3041,21 +3266,46 @@ for iSub = 1:length(handles.Cfg.SubList)
     else
         SubID = handles.Cfg.SubList{iSub};
     end
-
-    T1OutputDir = [handles.Cfg.OutputDir,filesep,'T1Raw',filesep,SubID];
-    mkdir(T1OutputDir);
-    try
-        if ~strcmp(handles.Cfg.InputList.T1{iSub},'PseudoSeries')
-            copyfile(handles.Cfg.InputList.T1{iSub},T1OutputDir);
-        else
-            copyfile(handles.Cfg.T1Pseudo,T1OutputDir);
+    
+    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+        for  iSession = 1:length(handles.Cfg.SxT1PlusList)
+            if iSession == 1
+                BaseName = 'T1Raw';
+            else
+                BaseName = 'TI2Raw';
+            end
+            T1PlusOutputDir = [handles.Cfg.OutputDir,filesep,BaseName,filesep,SubID];
+            mkdir(T1PlusOutputDir);
+            try
+                if ~strcmp(handles.Cfg.InputList.T1Plus{iSession}{iSub},'PseudoSeries')
+                    copyfile(handles.Cfg.InputList.T1Plus{iSession}{iSub},T1PlusOutputDir);
+                else
+                    copyfile(handles.Cfg.T1PlusPseudo{iSession},T1PlusOutputDir);
+                end
+            catch
+                if ~strcmp(handles.Cfg.InputList.T1Plus{iSession}{iSub},'PseudoSeries')
+                    dos(['for file in "',handles.Cfg.InputList.T1Plus{iSession}{iSub},'"/*; do cp -- "$file" "',T1PlusOutputDir,'" ; done']);
+                else
+                    dos(['for file in "',handles.Cfg.T1PlusPseudo{iSession},'"/*; do cp -- "$file" "',T1PlusOutputDir,'" ; done']);
+                end
+            end
         end
-    catch % Mac OS error: cp: Argument list too long
-        if ~strcmp(handles.Cfg.InputList.T1{iSub},'PseudoSeries')
-            dos(['for file in "',handles.Cfg.InputList.T1{iSub},'"/*; do cp -- "$file" "',T1OutputDir,'" ; done']);
-        else
-            dos(['for file in "',handles.Cfg.T1Pseudo,'"/*; do cp -- "$file" "',T1OutputDir,'" ; done']);
-        end        
+    else
+        T1OutputDir = [handles.Cfg.OutputDir,filesep,'T1Raw',filesep,SubID];
+        mkdir(T1OutputDir);
+        try
+            if ~strcmp(handles.Cfg.InputList.T1{iSub},'PseudoSeries')
+                copyfile(handles.Cfg.InputList.T1{iSub},T1OutputDir);
+            else
+                copyfile(handles.Cfg.T1Pseudo,T1OutputDir);
+            end
+        catch % Mac OS error: cp: Argument list too long
+            if ~strcmp(handles.Cfg.InputList.T1{iSub},'PseudoSeries')
+                dos(['for file in "',handles.Cfg.InputList.T1{iSub},'"/*; do cp -- "$file" "',T1OutputDir,'" ; done']);
+            else
+                dos(['for file in "',handles.Cfg.T1Pseudo,'"/*; do cp -- "$file" "',T1OutputDir,'" ; done']);
+            end
+        end
     end
     
     if ~handles.Cfg.AnatOnly
@@ -3240,14 +3490,35 @@ else
 end
 
 %Convert T1 DICOM files to NIFTI images
-for iSub=1:length(handles.Cfg.SubList)
-    OutputDir=[handles.Cfg.OutputDir,filesep,'T1Img',filesep,SubjectID{iSub}];
-    mkdir(OutputDir);
-    DirDCM=dir([handles.Cfg.OutputDir,filesep,'T1Raw',filesep,SubjectID{iSub},filesep,'*']); %Revised by YAN Chao-Gan 100130. %DirDCM=dir([handles.Cfg.OutputDir,filesep,'FunRaw',filesep,SubjectID{i},filesep,'*.*']);
-    InputFilename=[handles.Cfg.OutputDir,filesep,'T1Raw',filesep,SubjectID{iSub},filesep,DirDCM(handles.Cfg.nFileOperator+1).name];
-    %YAN Chao-Gan 120817.
-    y_Call_dcm2nii(InputFilename, OutputDir, 'DefaultINI');
-    fprintf(['Converting T1 Images: ',SubjectID{iSub},' OK']);
+if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+    for iSession = 1:length(handles.Cfg.SxT1PlusList)
+        if iSession == 1
+            DCMName = 'T1Raw';
+            NIFTIName = 'T1Img';
+        else
+            DCMName = 'TI2Raw';
+            NIFTIName = 'TI2Img';
+        end
+        for iSub=1:length(handles.Cfg.SubList)
+            OutputDir=[handles.Cfg.OutputDir,filesep,NIFTIName,filesep,SubjectID{iSub}];
+            mkdir(OutputDir);
+            DirDCM=dir([handles.Cfg.OutputDir,filesep,DCMName,filesep,SubjectID{iSub},filesep,'*']);
+            InputFilename=[handles.Cfg.OutputDir,filesep,DCMName,filesep,SubjectID{iSub},filesep,DirDCM(handles.Cfg.nFileOperator+1).name];
+            y_Call_dcm2nii(InputFilename, OutputDir, 'DefaultINI');
+            fprintf(['Converting ',NIFTIName,': ',SubjectID{iSub},' OK']);
+        end
+        fprintf('\n');
+    end
+else
+    for iSub=1:length(handles.Cfg.SubList)
+        OutputDir=[handles.Cfg.OutputDir,filesep,'T1Img',filesep,SubjectID{iSub}];
+        mkdir(OutputDir);
+        DirDCM=dir([handles.Cfg.OutputDir,filesep,'T1Raw',filesep,SubjectID{iSub},filesep,'*']); %Revised by YAN Chao-Gan 100130. %DirDCM=dir([handles.Cfg.OutputDir,filesep,'FunRaw',filesep,SubjectID{i},filesep,'*.*']);
+        InputFilename=[handles.Cfg.OutputDir,filesep,'T1Raw',filesep,SubjectID{iSub},filesep,DirDCM(handles.Cfg.nFileOperator+1).name];
+        %YAN Chao-Gan 120817.
+        y_Call_dcm2nii(InputFilename, OutputDir, 'DefaultINI');
+        fprintf(['Converting T1 Images: ',SubjectID{iSub},' OK']);
+    end
 end
 
 %Convert T2 DICOM files to NIFTI images
@@ -3351,6 +3622,16 @@ for iSub = 1:length(SubjectID)
     else
         handles.Cfg.DCM2NIIStatus.T1{1}{iSub,1} = 'Failure';
         Flag(iSub) = 1;
+    end
+    
+    % Check TI2 DCM2NII status (UIH5T)
+    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+        if ~isempty(dir([handles.Cfg.OutputDir,filesep,'TI2Img',filesep,SubjectID{iSub},filesep,'*.nii']))
+            handles.Cfg.DCM2NIIStatus.TI2{iSub,1} = 'Success';
+        else
+            handles.Cfg.DCM2NIIStatus.TI2{iSub,1} = 'Failure';
+            Flag(iSub) = 1;
+        end
     end
     
     % Check T2 DCM2NII status
@@ -3474,6 +3755,9 @@ for iSub = 1:length(SubjectID)
     if handles.Cfg.IsDeleteSub
         if Flag(iSub) == 1
             rmdir([handles.Cfg.OutputDir,filesep,'T1Img',filesep,SubjectID{iSub}],'s');
+            if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+                rmdir([handles.Cfg.OutputDir,filesep,'TI2Img',filesep,SubjectID{iSub}],'s');
+            end
             if handles.Cfg.IsOrganizeT2
                 rmdir([handles.Cfg.OutputDir,filesep,'T2Img',filesep,SubjectID{iSub}],'s');
             end
@@ -3536,11 +3820,21 @@ guidata(hObject,handles);
 function WriteCSV(hObject, handles)
 %% Write out the conversion status into .csv file.
 if handles.Cfg.IsChangeSubID == 0
-    Titles = {'Subject ID','T1Raw'};
-    Text = [handles.Cfg.SubList, handles.Cfg.InputList.T1];
+    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+        Titles = {'Subject ID','T1Raw','TI2Raw'};
+        Text = [handles.Cfg.SubList, handles.Cfg.InputList.T1Plus{1}, handles.Cfg.InputList.T1Plus{2}];
+    else
+        Titles = {'Subject ID','T1Raw'};
+        Text = [handles.Cfg.SubList, handles.Cfg.InputList.T1];
+    end
 else
-    Titles = {'Default Subject ID', 'New Subject ID','T1Raw'};
-    Text = [handles.Cfg.SubList, handles.Cfg.SubListNew, handles.Cfg.InputList.T1];
+    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+        Titles = {'Subject ID','New Subject ID','T1Raw','TI2Raw'};
+        Text = [handles.Cfg.SubList, handles.Cfg.SubListNew, handles.Cfg.InputList.T1Plus{1}, handles.Cfg.InputList.T1Plus{2}];
+    else
+        Titles = {'Subject ID','New Subject ID','T1Raw'};
+        Text = [handles.Cfg.SubList, handles.Cfg.SubListNew, handles.Cfg.InputList.T1];
+    end
 end
 if ~handles.Cfg.AnatOnly 
     if handles.Cfg.IsOrganizeT2
@@ -3587,8 +3881,13 @@ if ~handles.Cfg.AnatOnly
 end
 
 if handles.Cfg.IsDCM2NII 
-    Titles = [Titles,'DCM2NII T1Raw'];
-    Text = [Text,handles.Cfg.DCM2NIIStatus.T1];
+    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+        Titles = [Titles,'DCM2NII T1Raw','DCM2NII TI2Raw'];
+        Text = [Text,handles.Cfg.DCM2NIIStatus.T1,handles.Cfg.DCM2NIIStatus.TI2];
+    else
+        Titles = [Titles,'DCM2NII T1Raw'];
+        Text = [Text,handles.Cfg.DCM2NIIStatus.T1];
+    end
     if ~handles.Cfg.AnatOnly
         if handles.Cfg.IsOrganizeT2
             Titles = [Titles,'DCM2NII T2Raw'];
@@ -3647,7 +3946,13 @@ function radiobuttonT1FixednFile_Callback(hObject, eventdata, handles)
 % hObject    handle to radiobuttonT1FixednFile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-handles.Cfg.SeriesFileNumber.LowLimitMode.T1 = ~get(handles.radiobuttonT1FixednFile,'Value');
+if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+    SessionFlag = handles.Cfg.SxT1PlusFlag;
+    SessionFlag = max(1, min(SessionFlag, numel(handles.Cfg.SxT1PlusList)));
+    handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus{SessionFlag} = ~get(handles.radiobuttonT1FixednFile,'Value');
+else
+    handles.Cfg.SeriesFileNumber.LowLimitMode.T1 = ~get(handles.radiobuttonT1FixednFile,'Value');
+end
 guidata(hObject,handles);
 UpdateDisplay(handles)
 % Hint: get(hObject,'Value') returns toggle state of radiobuttonT1FixednFile
@@ -3659,7 +3964,13 @@ function radiobuttonT1ChangeablenFile_Callback(hObject, eventdata, handles)
 % hObject    handle to radiobuttonT1ChangeablenFile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-handles.Cfg.SeriesFileNumber.LowLimitMode.T1 = get(handles.radiobuttonT1ChangeablenFile,'Value');
+if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+    SessionFlag = handles.Cfg.SxT1PlusFlag;
+    SessionFlag = max(1, min(SessionFlag, numel(handles.Cfg.SxT1PlusList)));
+    handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus{SessionFlag} = get(handles.radiobuttonT1ChangeablenFile,'Value');
+else
+    handles.Cfg.SeriesFileNumber.LowLimitMode.T1 = get(handles.radiobuttonT1ChangeablenFile,'Value');
+end
 guidata(hObject,handles);
 UpdateDisplay(handles)
 % Hint: get(hObject,'Value') returns toggle state of radiobuttonT1ChangeablenFile
@@ -3670,7 +3981,14 @@ function editT1nFile_Callback(hObject, eventdata, handles)
 % hObject    handle to editT1nFile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-handles.Cfg.SeriesFileNumber.LowThreshold.T1 = str2num(get(handles.editT1nFile,'String'));
+val = str2num(get(handles.editT1nFile,'String'));
+if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+    SessionFlag = handles.Cfg.SxT1PlusFlag;
+    SessionFlag = max(1, min(SessionFlag, numel(handles.Cfg.SxT1PlusList)));
+    handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus{SessionFlag} = val;
+else
+    handles.Cfg.SeriesFileNumber.LowThreshold.T1 = val;
+end
 guidata(hObject,handles);
 % Hints: get(hObject,'String') returns contents of editT1nFile as text
 %        str2double(get(hObject,'String')) returns contents of editT1nFile as a double
@@ -3820,15 +4138,12 @@ guidata(hObject,handles);
 function popupmenuFieldFunFileNumber_Callback(hObject, eventdata, handles)
 % hObject    handle to popupmenuFieldFunFileNumber (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)''
+% handles    structure with handles and user data (see GUIDATA)
 SessionFlag = handles.Cfg.SxFieldFunFlag;
 handles.Cfg.SeriesFileNumber.Flag.FieldFun(SessionFlag) = get(handles.popupmenuFieldFunFileNumber,'Value');
 guidata(hObject,handles);
-% Hints: contents = cellstr(get(hObject,'String')) returns popupmenuFieldFunFileNumber contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from popupmenuFieldFunFileNumber
 
 
-% --- Executes during object creation, after setting all properties.
 function popupmenuFieldFunFileNumber_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to popupmenuFieldFunFileNumber (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -3886,10 +4201,8 @@ function radiobuttonFieldFunFixednFile_Callback(hObject, eventdata, handles)
 handles.Cfg.SeriesFileNumber.LowLimitMode.FieldFun{handles.Cfg.SxFieldFunFlag} = ~get(handles.radiobuttonFieldFunFixednFile,'Value');
 guidata(hObject,handles);
 UpdateDisplay(handles)
-% Hint: get(hObject,'Value') returns toggle state of radiobuttonFieldFunFixednFile
 
 
-% --- Executes on button press in radiobuttonFieldFunChangeablenFile.
 function radiobuttonFieldFunChangeablenFile_Callback(hObject, eventdata, handles)
 % hObject    handle to radiobuttonFieldFunChangeablenFile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -3897,21 +4210,17 @@ function radiobuttonFieldFunChangeablenFile_Callback(hObject, eventdata, handles
 handles.Cfg.SeriesFileNumber.LowLimitMode.FieldFun{handles.Cfg.SxFieldFunFlag} = get(handles.radiobuttonFieldFunChangeablenFile,'Value');
 guidata(hObject,handles);
 UpdateDisplay(handles)
-% Hint: get(hObject,'Value') returns toggle state of radiobuttonFieldFunChangeablenFile
-
 
 
 function editFieldFunnFile_Callback(hObject, eventdata, handles)
 % hObject    handle to editFieldFunnFile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-handles.Cfg.SeriesFileNumber.LowThreshold.FieldFun{handles.Cfg.SxFieldFunFlag} = str2num(get(handles.editFieldFunnFile,'String'));
+val = str2num(get(handles.editFieldFunnFile,'String'));
+handles.Cfg.SeriesFileNumber.LowThreshold.FieldFun{handles.Cfg.SxFieldFunFlag} = val;
 guidata(hObject,handles);
-% Hints: get(hObject,'String') returns contents of editFieldFunnFile as text
-%        str2double(get(hObject,'String')) returns contents of editFieldFunnFile as a double
 
 
-% --- Executes during object creation, after setting all properties.
 function editFieldFunnFile_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to editFieldFunnFile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -4065,27 +4374,59 @@ set(handles.checkboxIsOrganizeFieldDwi,'Value',handles.Cfg.IsOrganizeFieldDwi);
 % DCM2NII checkbox state/enabled is managed by SetDCM2NII() in callbacks.
 
 % T1Raw
-set(handles.popupmenuT1,'String',handles.Cfg.Demo.SeriesNames,'Value',handles.Cfg.SeriesIndex.T1);
-Percentage = handles.Cfg.SeriesFileNumber.Percent.T1;
-DisplayString = cellfun(@(Num,Per) sprintf('%d (%.0f%%)',Num,Per*100),...
-    num2cell(handles.Cfg.SeriesFileNumber.List.T1),num2cell(Percentage),'UniformOutput',false);
-set(handles.popupmenuT1FileNumber,'String',DisplayString,'Value',handles.Cfg.SeriesFileNumber.Flag.T1);
-set(handles.editT1nFile,'String',num2str(handles.Cfg.SeriesFileNumber.LowThreshold.T1));
-if handles.Cfg.SeriesFileNumber.LowLimitMode.T1 == 0
-    set(handles.popupmenuT1FileNumber,'Enable','on');
-    set(handles.radiobuttonT1FixednFile,'Value',1);
-    set(handles.radiobuttonT1ChangeablenFile,'Value',0);
-    set(handles.textMoreThanT1,'Enable','off');
-    set(handles.editT1nFile,'Enable','off');
-    set(handles.textFilesT1,'Enable','off');
+if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
+    set(handles.checkboxUIH5T,'Value',1);
+    set(handles.popupmenuSxT1Plus,'Visible','on');
+    Percentage = handles.Cfg.SeriesFileNumber.Percent.T1Plus{handles.Cfg.SxT1PlusFlag};
+    DisplayString = cellfun(@(Num,Per) sprintf('%d (%.0f%%)',Num,Per*100),...
+        num2cell(handles.Cfg.SeriesFileNumber.List.T1Plus{handles.Cfg.SxT1PlusFlag}),num2cell(Percentage),'UniformOutput',false);
+    set(handles.popupmenuT1FileNumber,'String',DisplayString,...
+        'Value',handles.Cfg.SeriesFileNumber.Flag.T1Plus(handles.Cfg.SxT1PlusFlag));
+    set(handles.editT1nFile,'String',...
+        num2str(handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus{handles.Cfg.SxT1PlusFlag}));
+    if handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus{handles.Cfg.SxT1PlusFlag} ==0
+        set(handles.popupmenuT1FileNumber,'Enable','on');
+        set(handles.radiobuttonT1FixednFile,'Value',1);
+        set(handles.radiobuttonT1ChangeablenFile,'Value',0);
+        set(handles.textMoreThanT1,'Enable','off');
+        set(handles.editT1nFile,'Enable','off');
+        set(handles.textFilesT1,'Enable','off');
+    else
+        set(handles.popupmenuT1FileNumber,'Enable','off');
+        set(handles.radiobuttonT1FixednFile,'Value',0);
+        set(handles.radiobuttonT1ChangeablenFile,'Value',1);
+        set(handles.textMoreThanT1,'Enable','on');
+        set(handles.editT1nFile,'Enable','on');
+        set(handles.textFilesT1,'Enable','on');
+    end
+    set(handles.popupmenuSxT1Plus,'String',handles.Cfg.SxT1PlusList,'Value',handles.Cfg.SxT1PlusFlag);
+    set(handles.popupmenuT1,'String',handles.Cfg.Demo.SeriesNames,'Value',handles.Cfg.SeriesIndex.T1Plus(handles.Cfg.SxT1PlusFlag));
 else
-    set(handles.popupmenuT1FileNumber,'Enable','off');
-    set(handles.radiobuttonT1FixednFile,'Value',0);
-    set(handles.radiobuttonT1ChangeablenFile,'Value',1);
-    set(handles.textMoreThanT1,'Enable','on');
-    set(handles.editT1nFile,'Enable','on');
-    set(handles.textFilesT1,'Enable','on');
+    set(handles.checkboxUIH5T,'Value',0);
+    set(handles.popupmenuSxT1Plus,'Visible','off');
+    set(handles.popupmenuT1,'String',handles.Cfg.Demo.SeriesNames,'Value',handles.Cfg.SeriesIndex.T1);
+    Percentage = handles.Cfg.SeriesFileNumber.Percent.T1;
+    DisplayString = cellfun(@(Num,Per) sprintf('%d (%.0f%%)',Num,Per*100),...
+        num2cell(handles.Cfg.SeriesFileNumber.List.T1),num2cell(Percentage),'UniformOutput',false);
+    set(handles.popupmenuT1FileNumber,'String',DisplayString,'Value',handles.Cfg.SeriesFileNumber.Flag.T1);
+    set(handles.editT1nFile,'String',num2str(handles.Cfg.SeriesFileNumber.LowThreshold.T1));
+    if handles.Cfg.SeriesFileNumber.LowLimitMode.T1 == 0
+        set(handles.popupmenuT1FileNumber,'Enable','on');
+        set(handles.radiobuttonT1FixednFile,'Value',1);
+        set(handles.radiobuttonT1ChangeablenFile,'Value',0);
+        set(handles.textMoreThanT1,'Enable','off');
+        set(handles.editT1nFile,'Enable','off');
+        set(handles.textFilesT1,'Enable','off');
+    else
+        set(handles.popupmenuT1FileNumber,'Enable','off');
+        set(handles.radiobuttonT1FixednFile,'Value',0);
+        set(handles.radiobuttonT1ChangeablenFile,'Value',1);
+        set(handles.textMoreThanT1,'Enable','on');
+        set(handles.editT1nFile,'Enable','on');
+        set(handles.textFilesT1,'Enable','on');
+    end
 end
+
 
 % T2Raw
 if handles.Cfg.IsOrganizeT2
@@ -4562,6 +4903,16 @@ iSession = max(1, min(iSession, handles.Cfg.FunSessionNumber));
 % Ensure per-session vector exists with correct size
 if ~isfield(handles.Cfg,'IsMultiEchoFunAll') || numel(handles.Cfg.IsMultiEchoFunAll) ~= handles.Cfg.FunSessionNumber
     handles.Cfg.IsMultiEchoFunAll = zeros(handles.Cfg.FunSessionNumber,1);
+handles.Cfg.IsUIH5T = 0;
+handles.Cfg.SxT1PlusList = {'eT1W','TI2'};
+handles.Cfg.SxT1PlusFlag = 1;
+handles.Cfg.SeriesName.T1Plus = cell(numel(handles.Cfg.SxT1PlusList),1);
+handles.Cfg.SeriesIndex.T1Plus = ones(numel(handles.Cfg.SxT1PlusList),1);
+handles.Cfg.SeriesFileNumber.List.T1Plus = cell(1,numel(handles.Cfg.SxT1PlusList)); handles.Cfg.SeriesFileNumber.List.T1Plus(:) = {[0]};
+handles.Cfg.SeriesFileNumber.Flag.T1Plus = ones(numel(handles.Cfg.SxT1PlusList),1);
+handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus = cell(1,numel(handles.Cfg.SxT1PlusList)); handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus(:) = {[0]};
+handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus = cell(1,numel(handles.Cfg.SxT1PlusList)); handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus(:) = {[0]};
+handles.Cfg.SeriesFileNumber.Percent.T1Plus = cell(1,numel(handles.Cfg.SxT1PlusList)); handles.Cfg.SeriesFileNumber.Percent.T1Plus(:) = {[0]};
 end
 
 handles.Cfg.IsMultiEchoFunAll(iSession) = Val;
@@ -4759,3 +5110,54 @@ EchoDirs = candSeries(idx);
 
 IsOK = 1;
 Msg = sprintf('Detected %d echoes (ProtocolName match + same subject-level file count).', numel(EchoDirs));
+
+
+% --- Executes on button press in checkboxUIH5T.
+function checkboxUIH5T_Callback(hObject, eventdata, handles)
+% hObject    handle to checkboxUIH5T (see GCBO)
+% UIH5T style T1: two series (eT1W and TI2) selected via popupmenuSxT1Plus and popupmenuT1.
+handles.Cfg.IsUIH5T = get(handles.checkboxUIH5T,'Value');
+% Initialize per-option cfg if missing
+if ~isfield(handles.Cfg,'SxT1PlusList') || isempty(handles.Cfg.SxT1PlusList)
+    handles.Cfg.SxT1PlusList = {'eT1W','TI2'};
+end
+nOpt = numel(handles.Cfg.SxT1PlusList);
+if ~isfield(handles.Cfg,'SxT1PlusFlag') || handles.Cfg.SxT1PlusFlag < 1 || handles.Cfg.SxT1PlusFlag > nOpt
+    handles.Cfg.SxT1PlusFlag = 1;
+end
+if ~isfield(handles.Cfg.SeriesName,'T1Plus') || numel(handles.Cfg.SeriesName.T1Plus) ~= nOpt
+    handles.Cfg.SeriesName.T1Plus = cell(nOpt,1);
+end
+if ~isfield(handles.Cfg.SeriesIndex,'T1Plus') || numel(handles.Cfg.SeriesIndex.T1Plus) ~= nOpt
+    handles.Cfg.SeriesIndex.T1Plus = ones(nOpt,1);
+end
+if ~isfield(handles.Cfg.SeriesFileNumber,'List') || ~isfield(handles.Cfg.SeriesFileNumber.List,'T1Plus') || numel(handles.Cfg.SeriesFileNumber.List.T1Plus) ~= nOpt
+    handles.Cfg.SeriesFileNumber.List.T1Plus = cell(1,nOpt); handles.Cfg.SeriesFileNumber.List.T1Plus(:) = {[0]};
+    handles.Cfg.SeriesFileNumber.Flag.T1Plus = ones(nOpt,1);
+    handles.Cfg.SeriesFileNumber.Percent.T1Plus = cell(1,nOpt); handles.Cfg.SeriesFileNumber.Percent.T1Plus(:) = {[0]};
+    handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus = cell(1,nOpt); handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus(:) = {[0]};
+    handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus = cell(1,nOpt); handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus(:) = {[0]};
+end
+
+UpdateDisplay(handles);
+guidata(hObject,handles);
+
+
+function popupmenuSxT1Plus_Callback(hObject, eventdata, handles)
+% hObject    handle to popupmenuSxT1Plus (see GCBO)
+% Switch between UIH5T T1 options (eT1W / TI2) to configure series selection and file-number criteria.
+handles.Cfg.SxT1PlusFlag = get(handles.popupmenuSxT1Plus,'Value');
+UpdateDisplay(handles);
+guidata(hObject,handles);
+
+
+function popupmenuSxT1Plus_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to popupmenuSxT1Plus (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
