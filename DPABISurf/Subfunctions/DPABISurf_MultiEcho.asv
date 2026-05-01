@@ -1,0 +1,7 @@
+function Cfg = DPABISurf_MultiEcho(Cfg)
+% DPABISurf_MultiEcho
+% Select multi-echo data analysis method.
+%
+% Usage:
+%   Cfg = DPABISurf_MultiEcho(Cfg);
+

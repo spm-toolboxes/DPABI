@@ -176,6 +176,9 @@ if ~isempty(NeedReRunID) %(Cfg.Isfmriprep==1)
     if isfield(Cfg,'FieldMap') && Cfg.FieldMap.IsApplyFieldMapCorrection==0 %YAN Chao-Gan, 191124.
         Command = sprintf('%s --ignore fieldmaps', Command);
     end
+    if isfield(Cfg,'IsMultiEcho') && Cfg.IsMultiEcho==1 %YAN Chao-Gan, 260501.
+        Command = sprintf('%s --me-output-echos', Command);
+    end
     if Cfg.IsICA_AROMA==1
         %Command = sprintf('%s --use-aroma --aroma-melodic-dimensionality -250 --ignore-aroma-denoising-errors', Command); %The HCP pipeline default is 250 maximum
         %Command = sprintf('%s --use-aroma --aroma-melodic-dimensionality -200 --ignore-aroma-denoising-errors', Command); %The fMRIPrep pipeline default is 200 maximum

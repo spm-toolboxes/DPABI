@@ -3093,10 +3093,12 @@ if handles.Cfg.IsPseudoSeries
         
     for iSub = 1:length(SubString)
         if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
-            if  ~isempty(T1PlusInputDir{iSession}{iSub}) && ~strcmp(T1PlusInputDir{iSession}{iSub}(end-11:end),'PseudoSeries') && isempty(handles.Cfg.T1PlusPseudo{iSession})
-                handles.Cfg.T1PlusPseudo{iSession} = T1PlusInputDir{iSession}{iSub};
-            elseif isempty(T1PlusInputDir{iSession}{iSub}) || strcmp(T1PlusInputDir{iSession}{iSub}(end-11:end),'PseudoSeries')
-                T1PlusInputDir{iSession}{iSub} = 'PseudoSeries';
+            for iT1Plus = 1:length(handles.Cfg.SxT1PlusList)
+                if  ~isempty(T1PlusInputDir{iT1Plus}{iSub}) && ~strcmp(T1PlusInputDir{iT1Plus}{iSub}(end-11:end),'PseudoSeries') && isempty(handles.Cfg.T1PlusPseudo{iT1Plus})
+                    handles.Cfg.T1PlusPseudo{iT1Plus} = T1PlusInputDir{iT1Plus}{iSub};
+                elseif isempty(T1PlusInputDir{iT1Plus}{iSub}) || strcmp(T1PlusInputDir{iT1Plus}{iSub}(end-11:end),'PseudoSeries')
+                    T1PlusInputDir{iT1Plus}{iSub} = 'PseudoSeries';
+                end
             end
         else
             if ~isempty(T1InputDir{iSub}) && ~strcmp(T1InputDir{iSub}(end-11:end),'PseudoSeries') && isempty(handles.Cfg.T1Pseudo)
@@ -3142,6 +3144,11 @@ if handles.Cfg.IsPseudoSeries
             if handles.Cfg.IsOrganizeFun
                 for iSession = 1:handles.Cfg.FunSessionNumber
                     if isfield(handles.Cfg,'IsMultiEchoFunAll') && handles.Cfg.IsMultiEchoFunAll(iSession)
+                        if ~iscell(FunAllInputDirME{iSession}{iSub})
+                            FunAllInputDirME{iSession}{iSub} = cell(handles.Cfg.MultiEchoNEcho(iSession),1);
+                        elseif length(FunAllInputDirME{iSession}{iSub}) < handles.Cfg.MultiEchoNEcho(iSession)
+                            FunAllInputDirME{iSession}{iSub}(handles.Cfg.MultiEchoNEcho(iSession)) = {''};
+                        end
                         for iEcho  = 1:handles.Cfg.MultiEchoNEcho(iSession)
                             if ~isempty(FunAllInputDirME{iSession}{iSub}{iEcho}) && isempty(handles.Cfg.FunAllPseudoME{iSession}{iEcho})
                                 handles.Cfg.FunAllPseudoME{iSession}{iEcho} = FunAllInputDirME{iSession}{iSub}{iEcho};

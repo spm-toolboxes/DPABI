@@ -53,6 +53,24 @@ for i=1:Cfg.SubjectNum
 end
 fclose(fid);
 
+MaxFunSessionNumber=max(Cfg.FunctionalSessionNumber,1);
+FunJSONFileSet=cell(Cfg.SubjectNum,MaxFunSessionNumber);
+FunMetadataSourceFiles=cell(Cfg.SubjectNum,MaxFunSessionNumber);
+% uMR 5T data includes TI2Img (INV2); use it to MPRAGEise the T1/UNI image.
+IsUMR5T=7==exist([Cfg.WorkingDir,filesep,'TI2Img'],'dir');
+if IsUMR5T
+    [DPABIPath, ~, ~] = fileparts(which('DPABI.m'));
+    [CurrentDPABIPath, ~, ~] = fileparts(fileparts(mfilename('fullpath')));
+    if isempty(DPABIPath) || ...
+            ((2~=exist(fullfile(DPABIPath,'RedistributedToolboxes','MPRAGEise_yan.py'),'file')) && ...
+            (2==exist(fullfile(CurrentDPABIPath,'RedistributedToolboxes','MPRAGEise_yan.py'),'file')))
+        DPABIPath=CurrentDPABIPath;
+    end
+    fprintf('TI2Img folder detected. Applying uMR 5T MPRAGEise correction to T1w images...\n');
+else
+    DPABIPath='';
+end
+
 %Single session data
 if Cfg.FunctionalSessionNumber<=1
     for i=1:length(SubjectID_BIDS)
@@ -103,6 +121,10 @@ if Cfg.FunctionalSessionNumber<=1
         if ~isempty(DirJSON)
             copyfile([Cfg.WorkingDir,filesep,'T1Img',filesep,Cfg.SubjectID{i},filesep,DirJSON(1).name],[OutDir,filesep,SubjectID_BIDS{i},filesep,'anat',filesep,SubjectID_BIDS{i},'_T1w.json'])
         end
+
+        if IsUMR5T
+            y_RunMPRAGEiseYanForUMR5T(Cfg.WorkingDir, OutDir, '', [], Cfg.SubjectID{i}, SubjectID_BIDS{i}, DPABIPath);
+        end
         
         
         %Dealing with T2 data
@@ -131,26 +153,11 @@ if Cfg.FunctionalSessionNumber<=1
         %Dealing with functional data
         if Cfg.FunctionalSessionNumber==1
             mkdir([OutDir,filesep,SubjectID_BIDS{i},filesep,'func'])
-            DirImg=dir([Cfg.WorkingDir,filesep,'FunImg',filesep,Cfg.SubjectID{i},filesep,'*.img']);
-            DirNii=dir([Cfg.WorkingDir,filesep,'FunImg',filesep,Cfg.SubjectID{i},filesep,'*.nii']);
-            DirNiiGZ=dir([Cfg.WorkingDir,filesep,'FunImg',filesep,Cfg.SubjectID{i},filesep,'*.nii.gz']);
-            FunFile_IntendedFor=[];
-            if ~isempty(DirImg) || length(DirNii)>=2  || length(DirNiiGZ)>=2
-                [Data,VoxelSize,theImgFileList, Header] =y_ReadAll([Cfg.WorkingDir,filesep,'FunImg',filesep,Cfg.SubjectID{i}]);
-                y_Write(Data,Header,[OutDir,filesep,SubjectID_BIDS{i},filesep,'func',filesep,SubjectID_BIDS{i},'_task-rest_bold.nii'])
-                FunFile_IntendedFor=['func/',SubjectID_BIDS{i},'_task-rest_bold.nii'];
-            elseif length(DirNii)==1
-                copyfile([Cfg.WorkingDir,filesep,'FunImg',filesep,Cfg.SubjectID{i},filesep,DirNii(1).name],[OutDir,filesep,SubjectID_BIDS{i},filesep,'func',filesep,SubjectID_BIDS{i},'_task-rest_bold.nii'])
-                FunFile_IntendedFor=['func/',SubjectID_BIDS{i},'_task-rest_bold.nii'];
-            elseif length(DirNiiGZ)==1
-                copyfile([Cfg.WorkingDir,filesep,'FunImg',filesep,Cfg.SubjectID{i},filesep,DirNiiGZ(1).name],[OutDir,filesep,SubjectID_BIDS{i},filesep,'func',filesep,SubjectID_BIDS{i},'_task-rest_bold.nii.gz'])
-                FunFile_IntendedFor=['func/',SubjectID_BIDS{i},'_task-rest_bold.nii.gz'];
-            end
-            
-            DirJSON=dir([Cfg.WorkingDir,filesep,'FunImg',filesep,Cfg.SubjectID{i},filesep,'*.json']); %YAN Chao-Gan, 191121. For BIDS format. Copy JSON
-            if ~isempty(DirJSON)
-                copyfile([Cfg.WorkingDir,filesep,'FunImg',filesep,Cfg.SubjectID{i},filesep,DirJSON(1).name],[OutDir,filesep,SubjectID_BIDS{i},filesep,'func',filesep,SubjectID_BIDS{i},'_task-rest_bold.json'])
-            end
+            [FunFile_IntendedFor,FunJSONFileSet{i,1},FunMetadataSourceFiles{i,1}] = y_CopyFunImgToBIDS(...
+                [Cfg.WorkingDir,filesep,'FunImg',filesep,Cfg.SubjectID{i}], ...
+                [OutDir,filesep,SubjectID_BIDS{i},filesep,'func'], ...
+                'func', ...
+                [SubjectID_BIDS{i},'_task-rest']);
             
             %Dealing with Fun FieldMap data
             FieldMapMeasures={'PhaseDiff','Magnitude1','Magnitude2','Phase1','Phase2','Magnitude','FieldMap'};
@@ -170,6 +177,10 @@ if Cfg.FunctionalSessionNumber<=1
 
                 end
             end
+            y_FillEchoTimesInPhaseDiffJSON(...
+                [OutDir,filesep,SubjectID_BIDS{i},filesep,'fmap',filesep,SubjectID_BIDS{i},'_phasediff.json'], ...
+                [OutDir,filesep,SubjectID_BIDS{i},filesep,'fmap',filesep,SubjectID_BIDS{i},'_magnitude1.json'], ...
+                [OutDir,filesep,SubjectID_BIDS{i},filesep,'fmap',filesep,SubjectID_BIDS{i},'_magnitude2.json']);
 
             %Dealing with Fun Topup data
             DirNii=dir([Cfg.WorkingDir,filesep,'FunFieldMap',filesep,'Topup',filesep,Cfg.SubjectID{i},filesep,'*.nii']);
@@ -245,6 +256,10 @@ if Cfg.FunctionalSessionNumber<=1
                     spm_jsonwrite([OutDir,filesep,SubjectID_BIDS{i},filesep,'fmap',filesep,SubjectID_BIDS{i},'_acq-dwi_',lower(FieldMapMeasures{iFieldMapMeasure}),'.json'],JSON);
                 end
             end
+            y_FillEchoTimesInPhaseDiffJSON(...
+                [OutDir,filesep,SubjectID_BIDS{i},filesep,'fmap',filesep,SubjectID_BIDS{i},'_acq-dwi_phasediff.json'], ...
+                [OutDir,filesep,SubjectID_BIDS{i},filesep,'fmap',filesep,SubjectID_BIDS{i},'_acq-dwi_magnitude1.json'], ...
+                [OutDir,filesep,SubjectID_BIDS{i},filesep,'fmap',filesep,SubjectID_BIDS{i},'_acq-dwi_magnitude2.json']);
 
 
             %Dealing with Dwi Topup data
@@ -349,6 +364,10 @@ if Cfg.FunctionalSessionNumber>=2
             if ~isempty(DirJSON)
                 copyfile([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iT1Session},'T1Img',filesep,Cfg.SubjectID{i},filesep,DirJSON(1).name],[OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iT1Session),filesep,'anat',filesep,SubjectID_BIDS{i},'_ses-',num2str(iT1Session),'_T1w.json'])
             end
+
+            if IsUMR5T
+                y_RunMPRAGEiseYanForUMR5T(Cfg.WorkingDir, OutDir, FunSessionPrefixSet{iT1Session}, iT1Session, Cfg.SubjectID{i}, SubjectID_BIDS{i}, DPABIPath);
+            end
         end
     end
 
@@ -392,25 +411,12 @@ if Cfg.FunctionalSessionNumber>=2
         FunFile_IntendedFor=[];
         for iFunSession=1:Cfg.FunctionalSessionNumber
             mkdir([OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFunSession),filesep,'func'])
-            DirImg=dir([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i},filesep,'*.img']);
-            DirNii=dir([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i},filesep,'*.nii']);
-            DirNiiGZ=dir([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i},filesep,'*.nii.gz']);
-            if ~isempty(DirImg) || length(DirNii)>=2  || length(DirNiiGZ)>=2
-                [Data,VoxelSize,theImgFileList, Header] =y_ReadAll([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i}]);
-                y_Write(Data,Header,[OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFunSession),filesep,'func',filesep,SubjectID_BIDS{i},'_ses-',num2str(iFunSession),'_task-rest_bold.nii'])
-                FunFile_IntendedFor=[FunFile_IntendedFor,{['ses-',num2str(iFunSession),'/func/',SubjectID_BIDS{i},'_ses-',num2str(iFunSession),'_task-rest_bold.nii']}];
-            elseif length(DirNii)==1
-                copyfile([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i},filesep,DirNii(1).name],[OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFunSession),filesep,'func',filesep,SubjectID_BIDS{i},'_ses-',num2str(iFunSession),'_task-rest_bold.nii'])
-                FunFile_IntendedFor=[FunFile_IntendedFor,{['ses-',num2str(iFunSession),'/func/',SubjectID_BIDS{i},'_ses-',num2str(iFunSession),'_task-rest_bold.nii']}];
-            elseif length(DirNiiGZ)==1
-                copyfile([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i},filesep,DirNiiGZ(1).name],[OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFunSession),filesep,'func',filesep,SubjectID_BIDS{i},'_ses-',num2str(iFunSession),'_task-rest_bold.nii.gz'])
-                FunFile_IntendedFor=[FunFile_IntendedFor,{['ses-',num2str(iFunSession),'/func/',SubjectID_BIDS{i},'_ses-',num2str(iFunSession),'_task-rest_bold.nii.gz']}];
-            end
-            
-            DirJSON=dir([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i},filesep,'*.json']); %YAN Chao-Gan, 191121. For BIDS format. Copy JSON
-            if ~isempty(DirJSON)
-                copyfile([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i},filesep,DirJSON(1).name],[OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFunSession),filesep,'func',filesep,SubjectID_BIDS{i},'_ses-',num2str(iFunSession),'_task-rest_bold.json'])
-            end
+            [FunFile_IntendedForTemp,FunJSONFileSet{i,iFunSession},FunMetadataSourceFiles{i,iFunSession}] = y_CopyFunImgToBIDS(...
+                [Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i}], ...
+                [OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFunSession),filesep,'func'], ...
+                ['ses-',num2str(iFunSession),'/func'], ...
+                [SubjectID_BIDS{i},'_ses-',num2str(iFunSession),'_task-rest']);
+            FunFile_IntendedFor=[FunFile_IntendedFor,FunFile_IntendedForTemp];
         end
         
         
@@ -433,6 +439,10 @@ if Cfg.FunctionalSessionNumber>=2
                 spm_jsonwrite([OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFieldMapSession),filesep,'fmap',filesep,SubjectID_BIDS{i},'_ses-',num2str(iFieldMapSession),'_',lower(FieldMapMeasures{iFieldMapMeasure}),'.json'],JSON);
             end
         end
+        y_FillEchoTimesInPhaseDiffJSON(...
+            [OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFieldMapSession),filesep,'fmap',filesep,SubjectID_BIDS{i},'_ses-',num2str(iFieldMapSession),'_phasediff.json'], ...
+            [OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFieldMapSession),filesep,'fmap',filesep,SubjectID_BIDS{i},'_ses-',num2str(iFieldMapSession),'_magnitude1.json'], ...
+            [OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFieldMapSession),filesep,'fmap',filesep,SubjectID_BIDS{i},'_ses-',num2str(iFieldMapSession),'_magnitude2.json']);
 
         %Dealing with Fun Topup data
         DirNii=dir([Cfg.WorkingDir,filesep,'FunFieldMap',filesep,'Topup',filesep,Cfg.SubjectID{i},filesep,'*.nii']);
@@ -516,6 +526,10 @@ if Cfg.FunctionalSessionNumber>=2
                     spm_jsonwrite([OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFieldMapSession),filesep,'fmap',filesep,SubjectID_BIDS{i},'_ses-',num2str(iFieldMapSession),'_acq-dwi_',lower(FieldMapMeasures{iFieldMapMeasure}),'.json'],JSON);
                 end
             end
+            y_FillEchoTimesInPhaseDiffJSON(...
+                [OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFieldMapSession),filesep,'fmap',filesep,SubjectID_BIDS{i},'_ses-',num2str(iFieldMapSession),'_acq-dwi_phasediff.json'], ...
+                [OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFieldMapSession),filesep,'fmap',filesep,SubjectID_BIDS{i},'_ses-',num2str(iFieldMapSession),'_acq-dwi_magnitude1.json'], ...
+                [OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFieldMapSession),filesep,'fmap',filesep,SubjectID_BIDS{i},'_ses-',num2str(iFieldMapSession),'_acq-dwi_magnitude2.json']);
 
 
             %Dealing with Dwi Topup data
@@ -613,31 +627,8 @@ if isfield(Cfg,'TR')
             VoxelSize = zeros(Cfg.SubjectNum,Cfg.FunctionalSessionNumber,3);
             for iFunSession=1:Cfg.FunctionalSessionNumber
                 for i=1:Cfg.SubjectNum
-                    cd([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i}]);
-                    DirImg=dir('*.img');
-                    if isempty(DirImg)  %YAN Chao-Gan, 111114. Also support .nii files. % Either in .nii.gz or in .nii
-                        DirImg=dir('*.nii.gz');  % Search .nii.gz and unzip; YAN Chao-Gan, 120806.
-                        if length(DirImg)==1
-                            gunzip(DirImg(1).name);
-                            delete(DirImg(1).name);
-                        end
-                        DirImg=dir('*.nii');
-                    end
-                    Nii  = nifti(DirImg(1).name);
-                    if (~isfield(Nii.timing,'tspace'))
-                        error('Can NOT retrieve the TR information from the NIfTI images');
-                    end
-                    TRSet(i,iFunSession) = Nii.timing.tspace;
-                    
-                    SliceNumber(i,iFunSession) = size(Nii.dat,3);
-                    
-                    if size(Nii.dat,4)==1 %Test if 3D volume
-                        nTimePoints(i,iFunSession) = length(DirImg);
-                    else %4D volume
-                        nTimePoints(i,iFunSession) = size(Nii.dat,4);
-                    end
-                    
-                    VoxelSize(i,iFunSession,:) = sqrt(sum(Nii.mat(1:3,1:3).^2));
+                    [TRSet(i,iFunSession), SliceNumber(i,iFunSession), nTimePoints(i,iFunSession), VoxelSize(i,iFunSession,:)] = ...
+                        y_GetFunImgBasicInfo(FunMetadataSourceFiles{i,iFunSession});
                 end
             end
             
@@ -688,21 +679,9 @@ end
 %Get Slice Timing info
 for iFunSession=1:Cfg.FunctionalSessionNumber
     for i=1:Cfg.SubjectNum
-        cd([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i}]);
-        DirImg=dir([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i},filesep,'*.img']);
-        if isempty(DirImg)
-            DirImg=dir([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i},filesep,'*.nii.gz']);
-            if length(DirImg)==1
-                gunzip([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i},filesep,DirImg(1).name]);
-                delete([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i},filesep,DirImg(1).name]);
-            end
-            DirImg=dir([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i},filesep,'*.nii']);
-        end
-        File=[Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i},filesep,DirImg(1).name];
+        [~, SliceNumber] = y_GetFunImgBasicInfo(FunMetadataSourceFiles{i,iFunSession});
         
         if Cfg.SliceTiming.SliceNumber==0 %If SliceNumber is set to 0, then retrieve the slice number from the NIfTI images. The slice order is then assumed as interleaved scanning: [1:2:SliceNumber,2:2:SliceNumber]. The reference slice is set to the slice acquired at the middle time point, i.e., SliceOrder(ceil(SliceNumber/2)). SHOULD BE EXTREMELY CAUTIOUS!!!
-            Nii=nifti(File);
-            SliceNumber = size(Nii.dat,3);
             if exist([Cfg.WorkingDir,filesep,'SliceOrderInfo.tsv'],'file')==2 % YAN Chao-Gan, 130524. Read the slice timing information from a tsv file (Tab-separated values)
                 fid = fopen([Cfg.WorkingDir,filesep,'SliceOrderInfo.tsv']);
                 StringFilter = '%s';
@@ -759,6 +738,7 @@ for iFunSession=1:Cfg.FunctionalSessionNumber
         if max(SliceOrder) <= SliceNumber %if provided is slice order
             TA = TR - (TR/SliceNumber);
             SliceTimingInAcquisition = linspace(0, TA, SliceNumber);
+            SliceTiming=zeros(1,SliceNumber);
             SliceTiming(SliceOrder)=SliceTimingInAcquisition;
         else
             SliceTiming=SliceOrder/1000; %From ms to s.
@@ -769,17 +749,21 @@ for iFunSession=1:Cfg.FunctionalSessionNumber
         JSON.RepetitionTime=TR;
         JSON.SliceTiming=SliceTiming;
         JSON.TaskName='REST';
-        if Cfg.FunctionalSessionNumber==1
-            JSONFile=[OutDir,filesep,SubjectID_BIDS{i},filesep,'func',filesep,SubjectID_BIDS{i},'_task-rest_bold.json'];
-        else
-            JSONFile=[OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFunSession),filesep,'func',filesep,SubjectID_BIDS{i},'_ses-',num2str(iFunSession),'_task-rest_bold.json'];
-        end
-        if ~exist(JSONFile) % If the JSON files were not copied from dcm2niix's conversion, then write one.
-            spm_jsonwrite(JSONFile,JSON);
-        else
-            JSON_Exist = spm_jsonread(JSONFile);
-            if ~isfield(JSON_Exist,'SliceTiming') % If the JSON from dcm2niix does not have slice timing information, then write one.
+        JSONFileSet=FunJSONFileSet{i,iFunSession};
+        for iJSONFile=1:length(JSONFileSet)
+            JSONFile=JSONFileSet{iJSONFile};
+            if ~exist(JSONFile,'file') % If the JSON files were not copied from dcm2niix's conversion, then write one.
                 spm_jsonwrite(JSONFile,JSON);
+            else
+                JSON_Exist = spm_jsonread(JSONFile);
+                JSON_Exist.RepetitionTime=JSON.RepetitionTime;
+                if ~isfield(JSON_Exist,'SliceTiming') % If the JSON from dcm2niix does not have slice timing information, then write one.
+                    JSON_Exist.SliceTiming=JSON.SliceTiming;
+                end
+                if ~isfield(JSON_Exist,'TaskName')
+                    JSON_Exist.TaskName=JSON.TaskName;
+                end
+                spm_jsonwrite(JSONFile,JSON_Exist);
             end
         end
     end
@@ -810,4 +794,375 @@ if (2==exist([Cfg.WorkingDir,filesep,'TRInfo.tsv'],'file'))  %If the TR informat
 end
 
 
+function y_RunMPRAGEiseYanForUMR5T(WorkingDir, OutDir, SessionPrefix, SessionIndex, SubjectID, SubjectID_BIDS, DPABIPath)
+[Inv2File, UniFile, TI2Dir, T1Dir] = y_GetMPRAGEiseYanInputFiles(WorkingDir, SessionPrefix, SubjectID);
+if isempty(Inv2File)
+    error(['Can NOT find TI2 image for MPRAGEise_yan in: ',TI2Dir])
+end
+if isempty(UniFile)
+    error(['Can NOT find T1/UNI image for MPRAGEise_yan in: ',T1Dir])
+end
+
+if isempty(SessionIndex)
+    OutAnatDir=[OutDir,filesep,SubjectID_BIDS,filesep,'anat'];
+    OutputBase=[OutAnatDir,filesep,SubjectID_BIDS,'_T1w'];
+else
+    OutAnatDir=[OutDir,filesep,SubjectID_BIDS,filesep,'ses-',num2str(SessionIndex),filesep,'anat'];
+    OutputBase=[OutAnatDir,filesep,SubjectID_BIDS,'_ses-',num2str(SessionIndex),'_T1w'];
+end
+mkdir(OutAnatDir);
+
+MPRAGEiseScript=fullfile(DPABIPath,'RedistributedToolboxes','MPRAGEise_yan.py');
+if 2~=exist(MPRAGEiseScript,'file')
+    error(['MPRAGEise_yan.py does not exist: ',MPRAGEiseScript])
+end
+
+[~, Inv2Ext] = y_GetImageStemAndExt(Inv2File);
+[UniStem, ~] = y_GetImageStemAndExt(UniFile);
+MPRAGEiseOutputFile=[OutAnatDir,filesep,UniStem,'_unbiased_clean',Inv2Ext];
+BIDSOutputFile=[OutputBase,Inv2Ext];
+
+fprintf('Running MPRAGEise_yan correction for %s...\n',SubjectID);
+if isdeployed && (isunix && (~ismac)) % If running within docker with compiled version
+    Command=sprintf('python3 %s -i %s -u %s -o %s --overwrite', ...
+        y_ShellQuote(MPRAGEiseScript), y_ShellQuote(Inv2File), y_ShellQuote(UniFile), y_ShellQuote(OutAnatDir));
+else
+    if ispc
+        CommandInit=sprintf('docker run -i --rm -v %s:/data -v %s:/opt/DPABI ', y_ShellQuote(WorkingDir), y_ShellQuote(DPABIPath)); %YAN Chao-Gan, 181214. Remove -t because there is a tty issue in windows
+    else
+        CommandInit=sprintf('docker run -ti --rm -v %s:/data -v %s:/opt/DPABI ', y_ShellQuote(WorkingDir), y_ShellQuote(DPABIPath));
+    end
+
+    Command=sprintf('%s cgyan/dpabi python3 /opt/DPABI/RedistributedToolboxes/MPRAGEise_yan.py -i %s -u %s -o %s --overwrite', ...
+        CommandInit, ...
+        y_ShellQuote(y_LocalPathToDockerPath(Inv2File,WorkingDir,'/data')), ...
+        y_ShellQuote(y_LocalPathToDockerPath(UniFile,WorkingDir,'/data')), ...
+        y_ShellQuote(y_LocalPathToDockerPath(OutAnatDir,WorkingDir,'/data')));
+end
+
+Status=system(Command);
+if Status~=0
+    error(['MPRAGEise_yan failed for subject ',SubjectID,'. Command: ',Command])
+end
+if 2~=exist(MPRAGEiseOutputFile,'file')
+    error(['MPRAGEise_yan finished but expected output was not found: ',MPRAGEiseOutputFile])
+end
+
+y_DeleteIfExists([OutputBase,'.nii']);
+y_DeleteIfExists([OutputBase,'.nii.gz']);
+[MoveStatus, MoveMessage] = movefile(MPRAGEiseOutputFile,BIDSOutputFile);
+if ~MoveStatus
+    error(['Failed to move MPRAGEise_yan output to BIDS T1w file: ',MoveMessage])
+end
+
+JSONFile=y_GetMatchingJSONFile(UniFile);
+if 2==exist(JSONFile,'file')
+    copyfile(JSONFile,[OutputBase,'.json']);
+end
+
+
+function [Inv2File, UniFile, TI2Dir, T1Dir] = y_GetMPRAGEiseYanInputFiles(WorkingDir, SessionPrefix, SubjectID)
+TI2Dir=[WorkingDir,filesep,SessionPrefix,'TI2Img'];
+T1Dir=[WorkingDir,filesep,SessionPrefix,'T1Img'];
+Inv2File=y_FindFirstSubjectNifti(TI2Dir, SubjectID);
+UniFile=y_FindFirstSubjectNifti(T1Dir, SubjectID);
+
+
+function File = y_FindFirstSubjectNifti(BaseDir, SubjectID)
+File='';
+SubjectDir=[BaseDir,filesep,SubjectID];
+if 7==exist(SubjectDir,'dir')
+    File=y_FindFirstNiftiByPatterns(SubjectDir, {'*Crop*.nii','*Crop*.nii.gz','*.nii','*.nii.gz'});
+    if ~isempty(File)
+        return
+    end
+end
+File=y_FindFirstNiftiByPatterns(BaseDir, {[SubjectID,'*Crop*.nii'],[SubjectID,'*Crop*.nii.gz'],[SubjectID,'*.nii'],[SubjectID,'*.nii.gz']});
+
+
+function File = y_FindFirstNiftiByPatterns(SearchDir, PatternSet)
+File='';
+if 7~=exist(SearchDir,'dir')
+    return
+end
+for iPattern=1:length(PatternSet)
+    DirImg=dir([SearchDir,filesep,PatternSet{iPattern}]);
+    if ~isempty(DirImg)
+        [~, SortIndex] = sort(lower({DirImg.name}));
+        DirImg=DirImg(SortIndex);
+        File=[SearchDir,filesep,DirImg(1).name];
+        return
+    end
+end
+
+
+function ContainerPath = y_LocalPathToDockerPath(LocalPath, LocalRoot, ContainerRoot)
+if length(LocalPath)<length(LocalRoot) || ~strcmp(LocalPath(1:length(LocalRoot)),LocalRoot)
+    error(['Path is not under the Docker-mounted working directory: ',LocalPath])
+end
+RelativePath=LocalPath(length(LocalRoot)+1:end);
+if ~isempty(RelativePath) && (strcmp(RelativePath(1),filesep) || strcmp(RelativePath(1),'/') || strcmp(RelativePath(1),'\'))
+    RelativePath=RelativePath(2:end);
+end
+RelativePath=strrep(RelativePath,'\','/');
+RelativePath=strrep(RelativePath,filesep,'/');
+if isempty(RelativePath)
+    ContainerPath=ContainerRoot;
+else
+    ContainerPath=[ContainerRoot,'/',RelativePath];
+end
+
+
+function Quoted = y_ShellQuote(Path)
+if ispc
+    Path=strrep(Path,'"','\"');
+else
+    Path=strrep(Path,'\','\\');
+    Path=strrep(Path,'"','\"');
+    Path=strrep(Path,'$','\$');
+    Path=strrep(Path,'`','\`');
+end
+Quoted=['"',Path,'"'];
+
+
+function JSONFile = y_GetMatchingJSONFile(NiftiFile)
+[PathName, FileName, Ext] = fileparts(NiftiFile);
+if strcmpi(Ext,'.gz')
+    [~, FileName, ~] = fileparts(FileName);
+end
+JSONFile=[PathName,filesep,FileName,'.json'];
+
+
+function y_DeleteIfExists(File)
+if 2==exist(File,'file')
+    delete(File);
+end
+
+
+function [FunFile_IntendedFor, FunJSONFiles, MetadataSourceFiles] = y_CopyFunImgToBIDS(FunDir, OutFuncDir, RelativeFuncDir, BIDSBaseName)
+[EchoGroups, IsMultiEcho] = y_GetFunImgEchoGroups(FunDir);
+
+FunFile_IntendedFor={};
+FunJSONFiles={};
+MetadataSourceFiles={};
+if isempty(EchoGroups)
+    error(['No functional image is found in: ',FunDir]);
+end
+
+MetadataSourceFiles=EchoGroups(1).Files;
+for iEcho=1:length(EchoGroups)
+    if IsMultiEcho
+        OutputBaseName=[BIDSBaseName,'_echo-',num2str(EchoGroups(iEcho).EchoIndex),'_bold'];
+    else
+        OutputBaseName=[BIDSBaseName,'_bold'];
+    end
+
+    OutputImgPathBase=[OutFuncDir,filesep,OutputBaseName];
+    OutputExt=y_CopyFunImgGroup(EchoGroups(iEcho).Files,OutputImgPathBase);
+    FunFile_IntendedFor=[FunFile_IntendedFor,{[RelativeFuncDir,'/',OutputBaseName,OutputExt]}];
+
+    OutputJSONFile=[OutFuncDir,filesep,OutputBaseName,'.json'];
+    FunJSONFiles=[FunJSONFiles,{OutputJSONFile}];
+    if ~isempty(EchoGroups(iEcho).JSONFiles)
+        copyfile(EchoGroups(iEcho).JSONFiles{1},OutputJSONFile);
+    end
+end
+
+
+function [EchoGroups, IsMultiEcho] = y_GetFunImgEchoGroups(FunDir)
+DirImg=dir([FunDir,filesep,'*.img']);
+DirNii=dir([FunDir,filesep,'*.nii']);
+DirNiiGZ=dir([FunDir,filesep,'*.nii.gz']);
+DirAll=[DirImg;DirNii;DirNiiGZ];
+
+EchoGroups=struct('EchoIndex',{},'Files',{},'JSONFiles',{});
+IsMultiEcho=0;
+if isempty(DirAll)
+    return
+end
+
+[~, SortIndex] = sort(lower({DirAll.name}));
+DirAll=DirAll(SortIndex);
+
+ImageInfo=struct('Name',{},'Path',{},'Stem',{},'EchoIndex',{},'HasEchoLabel',{});
+for iFile=1:length(DirAll)
+    [Stem, ~] = y_GetImageStemAndExt(DirAll(iFile).name);
+    EchoTokens=regexpi(DirAll(iFile).name,'_e(\d+)\.(nii\.gz|nii|img)$','tokens','once');
+
+    ImageInfo(iFile).Name=DirAll(iFile).name;
+    ImageInfo(iFile).Path=[FunDir,filesep,DirAll(iFile).name];
+    ImageInfo(iFile).Stem=Stem;
+    if isempty(EchoTokens)
+        ImageInfo(iFile).EchoIndex=NaN;
+        ImageInfo(iFile).HasEchoLabel=0;
+    else
+        ImageInfo(iFile).EchoIndex=str2double(EchoTokens{1});
+        ImageInfo(iFile).HasEchoLabel=1;
+    end
+end
+
+HasEchoLabel=logical([ImageInfo.HasEchoLabel]);
+if any(HasEchoLabel)
+    EchoIndexSet=[ImageInfo(HasEchoLabel).EchoIndex];
+    IsMultiEcho=any(EchoIndexSet>=2);
+else
+    EchoIndexSet=[];
+end
+
+if IsMultiEcho
+    if ~any(EchoIndexSet==1)
+        Index=find(~HasEchoLabel);
+        if ~isempty(Index)
+            EchoGroups(end+1)=y_BuildFunImgEchoGroup(ImageInfo(Index),1,FunDir); %#ok<AGROW>
+        end
+    end
+
+    EchoIndexSet=unique(EchoIndexSet);
+    EchoIndexSet=sort(EchoIndexSet);
+    for iEcho=1:length(EchoIndexSet)
+        Index=find(HasEchoLabel & [ImageInfo.EchoIndex]==EchoIndexSet(iEcho));
+        EchoGroups(end+1)=y_BuildFunImgEchoGroup(ImageInfo(Index),EchoIndexSet(iEcho),FunDir); %#ok<AGROW>
+    end
+else
+    EchoGroups=y_BuildFunImgEchoGroup(ImageInfo,1,FunDir);
+end
+
+
+function EchoGroup = y_BuildFunImgEchoGroup(ImageInfo, EchoIndex, FunDir)
+EchoGroup.EchoIndex=EchoIndex;
+EchoGroup.Files={ImageInfo.Path};
+EchoGroup.JSONFiles={};
+for iFile=1:length(ImageInfo)
+    JSONFile=[FunDir,filesep,ImageInfo(iFile).Stem,'.json'];
+    if 2==exist(JSONFile,'file')
+        EchoGroup.JSONFiles=[EchoGroup.JSONFiles,{JSONFile}]; %#ok<AGROW>
+    end
+end
+
+
+function OutputExt = y_CopyFunImgGroup(SourceFiles, OutputImgPathBase)
+if isempty(SourceFiles)
+    error('No functional image is found.');
+end
+
+[~, SourceExt] = y_GetImageStemAndExt(SourceFiles{1});
+if length(SourceFiles)>1
+    TempDir=tempname;
+    mkdir(TempDir);
+    CleanupObj=onCleanup(@()rmdir(TempDir,'s')); %#ok<NASGU>
+    for iFile=1:length(SourceFiles)
+        copyfile(SourceFiles{iFile},TempDir);
+        [SourcePath, SourceName, SourceExtTemp] = fileparts(SourceFiles{iFile});
+        if strcmpi(SourceExtTemp,'.img')
+            HeaderFile=[SourcePath,filesep,SourceName,'.hdr'];
+            if 2==exist(HeaderFile,'file')
+                copyfile(HeaderFile,TempDir);
+            end
+            MatFile=[SourcePath,filesep,SourceName,'.mat'];
+            if 2==exist(MatFile,'file')
+                copyfile(MatFile,TempDir);
+            end
+        end
+    end
+    [Data,~,~, Header] =y_ReadAll(TempDir);
+    y_Write(Data,Header,[OutputImgPathBase,'.nii'])
+    OutputExt='.nii';
+elseif strcmpi(SourceExt,'.img')
+    [Data, Header]=y_Read(SourceFiles{1});
+    y_Write(Data,Header,[OutputImgPathBase,'.nii'])
+    OutputExt='.nii';
+elseif strcmpi(SourceExt,'.nii')
+    copyfile(SourceFiles{1},[OutputImgPathBase,'.nii'])
+    OutputExt='.nii';
+elseif strcmpi(SourceExt,'.nii.gz')
+    copyfile(SourceFiles{1},[OutputImgPathBase,'.nii.gz'])
+    OutputExt='.nii.gz';
+else
+    error(['Unsupported functional image format: ',SourceFiles{1}]);
+end
+
+
+function [TR, SliceNumber, nTimePoints, VoxelSize] = y_GetFunImgBasicInfo(SourceFiles)
+if isempty(SourceFiles)
+    error('No functional image is found for metadata extraction.');
+end
+
+[~, SourceExt] = y_GetImageStemAndExt(SourceFiles{1});
+if strcmpi(SourceExt,'.nii.gz')
+    TempDir=tempname;
+    mkdir(TempDir);
+    CleanupObj=onCleanup(@()rmdir(TempDir,'s')); %#ok<NASGU>
+    gunzip(SourceFiles{1},TempDir);
+    [SourceStem, ~] = y_GetImageStemAndExt(SourceFiles{1});
+    File=[TempDir,filesep,SourceStem,'.nii'];
+else
+    File=SourceFiles{1};
+end
+
+Nii  = nifti(File);
+if (~isfield(Nii.timing,'tspace'))
+    error('Can NOT retrieve the TR information from the NIfTI images');
+end
+TR = Nii.timing.tspace;
+
+SliceNumber = size(Nii.dat,3);
+
+if size(Nii.dat,4)==1 %Test if 3D volume
+    nTimePoints = length(SourceFiles);
+else %4D volume
+    nTimePoints = size(Nii.dat,4);
+end
+
+VoxelSize = sqrt(sum(Nii.mat(1:3,1:3).^2));
+
+
+function [Stem, Ext] = y_GetImageStemAndExt(FileName)
+if length(FileName)>=7 && strcmpi(FileName(end-6:end),'.nii.gz')
+    [~, NameOnly] = fileparts(FileName(1:end-3));
+    Stem=NameOnly;
+    Ext='.nii.gz';
+else
+    [~, Stem, Ext] = fileparts(FileName);
+end
+
+
+function y_FillEchoTimesInPhaseDiffJSON(PhaseDiffJSONFile, Magnitude1JSONFile, Magnitude2JSONFile)
+if 2~=exist(PhaseDiffJSONFile,'file')
+    return
+end
+
+PhaseDiffJSON=spm_jsonread(PhaseDiffJSONFile);
+NeedWrite=0;
+
+if ~isfield(PhaseDiffJSON,'EchoTime1') || isempty(PhaseDiffJSON.EchoTime1)
+    EchoTime1=y_GetEchoTimeFromJSON(Magnitude1JSONFile);
+    if ~isempty(EchoTime1)
+        PhaseDiffJSON.EchoTime1=EchoTime1;
+        NeedWrite=1;
+    end
+end
+
+if ~isfield(PhaseDiffJSON,'EchoTime2') || isempty(PhaseDiffJSON.EchoTime2)
+    EchoTime2=y_GetEchoTimeFromJSON(Magnitude2JSONFile);
+    if ~isempty(EchoTime2)
+        PhaseDiffJSON.EchoTime2=EchoTime2;
+        NeedWrite=1;
+    end
+end
+
+if NeedWrite
+    spm_jsonwrite(PhaseDiffJSONFile,PhaseDiffJSON);
+end
+
+
+function EchoTime = y_GetEchoTimeFromJSON(JSONFile)
+EchoTime=[];
+if 2~=exist(JSONFile,'file')
+    return
+end
+
+JSON=spm_jsonread(JSONFile);
+if isfield(JSON,'EchoTime') && ~isempty(JSON.EchoTime)
+    EchoTime=JSON.EchoTime;
+end
 

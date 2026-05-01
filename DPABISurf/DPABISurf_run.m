@@ -495,31 +495,44 @@ if (Cfg.RemoveFirstTimePoints>0)
                 end
             else % either in .nii.gz or in .nii
                 DirImg=dir('*.nii.gz');  % Search .nii.gz and unzip; YAN Chao-Gan, 120806.
-                if length(DirImg)==1
-                    gunzip(DirImg(1).name);
-                    delete(DirImg(1).name);
+                for j=1:length(DirImg)
+                    gunzip(DirImg(j).name);
+                    delete(DirImg(j).name);
                 end
                 
                 DirImg=dir('*.nii');
                 
-                if length(DirImg)>1  %3D .nii images.
+                Is4DNii=zeros(length(DirImg),1);
+                TimePointsInNii=zeros(length(DirImg),1);
+                for j=1:length(DirImg)
+                    Nii  = nifti(DirImg(j).name);
+                    Is4DNii(j) = size(Nii.dat,4)>1;
+                    if Is4DNii(j)
+                        TimePointsInNii(j) = size(Nii.dat,4);
+                    else
+                        TimePointsInNii(j) = 1;
+                    end
+                end
+                
+                if any(Is4DNii)  % 4D .nii images, also support multi-echo with multiple 4D .nii files.
+                    if Cfg.TimePoints>0 && any(TimePointsInNii(Is4DNii)~=Cfg.TimePoints) % Will not check if TimePoints set to 0. YAN Chao-Gan 120806.
+                        Error=[Error;{['Error in Removing First ',num2str(Cfg.RemoveFirstTimePoints),'Time Points: ',Cfg.SubjectID{i}]}];
+                    end
+                    for j=1:length(DirImg)
+                        if Is4DNii(j)
+                            %YAN Chao-Gan, 210309. Save in single incase of Philips data.
+                            [Data Header]=y_Read(DirImg(j).name);
+                            Header.pinfo=[1;0;0]; Header.dt=[16,0];
+                            y_Write(Data(:,:,:,Cfg.RemoveFirstTimePoints+1:end),Header,DirImg(j).name);
+                        end
+                    end
+                else %3D .nii images
                     if Cfg.TimePoints>0 && length(DirImg)~=Cfg.TimePoints % Will not check if TimePoints set to 0. YAN Chao-Gan 120806.
                         Error=[Error;{['Error in Removing First ',num2str(Cfg.RemoveFirstTimePoints),'Time Points: ',Cfg.SubjectID{i}]}];
                     end
                     for j=1:Cfg.RemoveFirstTimePoints
                         delete(DirImg(j).name);
                     end
-                else %4D .nii images
-                    Nii  = nifti(DirImg(1).name);
-                    if Cfg.TimePoints>0 && size(Nii.dat,4)~=Cfg.TimePoints % Will not check if TimePoints set to 0. YAN Chao-Gan 120806.
-                        Error=[Error;{['Error in Removing First ',num2str(Cfg.RemoveFirstTimePoints),'Time Points: ',Cfg.SubjectID{i}]}];
-                    end
-                    %y_Write(Nii.dat(:,:,:,Cfg.RemoveFirstTimePoints+1:end),Nii,DirImg(1).name);
-                    %YAN Chao-Gan, 210309. Save in single incase of Philips data.
-                    [Data Header]=y_Read(DirImg(1).name);
-                    Header.pinfo=[1;0;0]; Header.dt=[16,0];
-                    y_Write(Data(:,:,:,Cfg.RemoveFirstTimePoints+1:end),Header,DirImg(1).name);
-                    
                 end
                 
             end
@@ -769,6 +782,9 @@ if (Cfg.Isfmriprep==1)
         if isfield(Cfg,'FieldMap') && Cfg.FieldMap.IsApplyFieldMapCorrection==0 %YAN Chao-Gan, 191124.
             Command = sprintf('%s --ignore fieldmaps', Command);
         end
+        if isfield(Cfg,'IsMultiEcho') && Cfg.IsMultiEcho==1 %YAN Chao-Gan, 260501.
+            Command = sprintf('%s --me-output-echos', Command);
+        end
         if Cfg.IsICA_AROMA==1
             %Command = sprintf('%s --use-aroma --aroma-melodic-dimensionality -250 --ignore-aroma-denoising-errors', Command); %The HCP pipeline default is 250 maximum
             %Command = sprintf('%s --use-aroma --aroma-melodic-dimensionality -200 --ignore-aroma-denoising-errors', Command); %The fMRIPrep pipeline default is 200 maximum
@@ -901,28 +917,59 @@ if (Cfg.IsSegmentSubregions==1)
     else
         CommandTemp=sprintf('docker run -ti --rm -v %s:/usr/local/freesurfer/7.4.1/license.txt -v %s:/data ', fullfile(DPABIPath, 'DPABISurf', 'FreeSurferLicense', 'license.txt'), Cfg.WorkingDir);
     end
+    
+    FreeSurferSubjectID=cell(Cfg.SubjectNum,1);
+    FreeSurferSubjectIDString=[];
+    for i=1:Cfg.SubjectNum
+        FreeSurferSubjectID{i}=Cfg.SubjectID{i};
+        DirList=dir(fullfile(Cfg.WorkingDir,'freesurfer',[Cfg.SubjectID{i},'*']));
+        DirList=DirList([DirList.isdir]);
+        if ~isempty(DirList)
+            CandidateNameSet=sort({DirList.name});
+            if any(strcmp(CandidateNameSet,Cfg.SubjectID{i}))
+                FreeSurferSubjectID{i}=Cfg.SubjectID{i};
+            elseif any(strcmp(CandidateNameSet,[Cfg.SubjectID{i},'_ses-1']))
+                FreeSurferSubjectID{i}=[Cfg.SubjectID{i},'_ses-1'];
+            else
+                SessionCandidateSet={};
+                Prefix=[Cfg.SubjectID{i},'_ses-'];
+                for iCandidate=1:length(CandidateNameSet)
+                    if strncmp(CandidateNameSet{iCandidate},Prefix,length(Prefix))
+                        SessionCandidateSet=[SessionCandidateSet;CandidateNameSet(iCandidate)]; %#ok<AGROW>
+                    end
+                end
+                if length(SessionCandidateSet)==1
+                    FreeSurferSubjectID{i}=SessionCandidateSet{1};
+                else
+                    FreeSurferSubjectID{i}=CandidateNameSet{1};
+                end
+            end
+        end
+        FreeSurferSubjectIDString = sprintf('%s %s',FreeSurferSubjectIDString,FreeSurferSubjectID{i});
+    end
+    Cfg.FreeSurferSubjectID=FreeSurferSubjectID;
 
     if isdeployed && (isunix && (~ismac)) % If running within docker with compiled version
-        Command=sprintf('export SUBJECTS_DIR=%s/freesurfer && parallel -j %g segment_subregions thalamus --cross {1} ::: %s', Cfg.WorkingDir,Cfg.ParallelWorkersNumber, SubjectIDString);
+        Command=sprintf('export SUBJECTS_DIR=%s/freesurfer && parallel -j %g segment_subregions thalamus --cross {1} ::: %s', Cfg.WorkingDir,Cfg.ParallelWorkersNumber, FreeSurferSubjectIDString);
     else
-        Command=sprintf('%s -e SUBJECTS_DIR=/data/freesurfer cgyan/freesurfer parallel -j %g segment_subregions thalamus --cross {1} ::: %s', CommandTemp, Cfg.ParallelWorkersNumber,SubjectIDString);
+        Command=sprintf('%s -e SUBJECTS_DIR=/data/freesurfer cgyan/freesurfer parallel -j %g segment_subregions thalamus --cross {1} ::: %s', CommandTemp, Cfg.ParallelWorkersNumber,FreeSurferSubjectIDString);
     end
     fprintf('Segment thalamus subregions with freesurfer, please be patient...\n');
     system(Command);
 
 
     if isdeployed && (isunix && (~ismac)) % If running within docker with compiled version
-        Command=sprintf('export SUBJECTS_DIR=%s/freesurfer && parallel -j %g segment_subregions hippo-amygdala --cross {1} ::: %s', Cfg.WorkingDir,Cfg.ParallelWorkersNumber, SubjectIDString);
+        Command=sprintf('export SUBJECTS_DIR=%s/freesurfer && parallel -j %g segment_subregions hippo-amygdala --cross {1} ::: %s', Cfg.WorkingDir,Cfg.ParallelWorkersNumber, FreeSurferSubjectIDString);
     else
-        Command=sprintf('%s -e SUBJECTS_DIR=/data/freesurfer cgyan/freesurfer parallel -j %g segment_subregions hippo-amygdala --cross {1} ::: %s', CommandTemp, Cfg.ParallelWorkersNumber,SubjectIDString);
+        Command=sprintf('%s -e SUBJECTS_DIR=/data/freesurfer cgyan/freesurfer parallel -j %g segment_subregions hippo-amygdala --cross {1} ::: %s', CommandTemp, Cfg.ParallelWorkersNumber,FreeSurferSubjectIDString);
     end
     fprintf('Segment hippo-amygdala subregions with freesurfer, please be patient...\n');
     system(Command);
 
     if isdeployed && (isunix && (~ismac)) % If running within docker with compiled version
-        Command=sprintf('export SUBJECTS_DIR=%s/freesurfer && parallel -j %g segment_subregions brainstem --cross {1} ::: %s', Cfg.WorkingDir,Cfg.ParallelWorkersNumber, SubjectIDString);
+        Command=sprintf('export SUBJECTS_DIR=%s/freesurfer && parallel -j %g segment_subregions brainstem --cross {1} ::: %s', Cfg.WorkingDir,Cfg.ParallelWorkersNumber, FreeSurferSubjectIDString);
     else
-        Command=sprintf('%s -e SUBJECTS_DIR=/data/freesurfer cgyan/freesurfer parallel -j %g segment_subregions brainstem --cross {1} ::: %s', CommandTemp, Cfg.ParallelWorkersNumber,SubjectIDString);
+        Command=sprintf('%s -e SUBJECTS_DIR=/data/freesurfer cgyan/freesurfer parallel -j %g segment_subregions brainstem --cross {1} ::: %s', CommandTemp, Cfg.ParallelWorkersNumber,FreeSurferSubjectIDString);
     end
     fprintf('Segment brainstem subregions with freesurfer, please be patient...\n');
     system(Command);

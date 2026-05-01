@@ -38,10 +38,15 @@ end
 [DPABIPath, fileN, extn] = fileparts(which('DPABI.m'));
 
 Cfg.SubjectNum=length(Cfg.SubjectID);
+FreeSurferSubjectID = cell(Cfg.SubjectNum,1);
 SubjectIDString=[];
+FreeSurferSubjectIDString=[];
 for i=1:Cfg.SubjectNum
+    FreeSurferSubjectID{i} = local_resolve_freesurfer_subject_id(Cfg, Cfg.SubjectID{i});
     SubjectIDString = sprintf('%s %s',SubjectIDString,Cfg.SubjectID{i});
+    FreeSurferSubjectIDString = sprintf('%s %s',FreeSurferSubjectIDString,FreeSurferSubjectID{i});
 end
+LinkedFreeSurferAndSubjectIDString = sprintf('::: %s :::+ %s', FreeSurferSubjectIDString, SubjectIDString);
 
 if ispc
     CommandInit=sprintf('docker run -i --rm -v %s:/opt/freesurfer/license.txt -v %s:/data -e SUBJECTS_DIR=/data/freesurfer cgyan/dpabi', fullfile(DPABIPath, 'DPABISurf', 'FreeSurferLicense', 'license.txt'), Cfg.WorkingDir); %YAN Chao-Gan, 181214. Remove -t because there is a tty issue in windows
@@ -63,20 +68,20 @@ if IsNeedOrganizeSurfWithParallel
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsaverage','Thickness'));
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsaverage5','Thickness'));
 
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi lh --sval %s/freesurfer/{1}/surf/lh.thickness --tval %s/Results/AnatSurfLH/fsaverage/Thickness/{1}_space-fsaverage_hemi-L.thickness.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi lh --sval %s/freesurfer/{1}/surf/lh.thickness --tval %s/Results/AnatSurfLH/fsaverage/Thickness/{2}_space-fsaverage_hemi-L.thickness.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi rh --sval %s/freesurfer/{1}/surf/rh.thickness --tval %s/Results/AnatSurfRH/fsaverage/Thickness/{1}_space-fsaverage_hemi-R.thickness.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi rh --sval %s/freesurfer/{1}/surf/rh.thickness --tval %s/Results/AnatSurfRH/fsaverage/Thickness/{2}_space-fsaverage_hemi-R.thickness.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi lh --sval %s/freesurfer/{1}/surf/lh.thickness --tval %s/Results/AnatSurfLH/fsaverage5/Thickness/{1}_space-fsaverage5_hemi-L.thickness.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi lh --sval %s/freesurfer/{1}/surf/lh.thickness --tval %s/Results/AnatSurfLH/fsaverage5/Thickness/{2}_space-fsaverage5_hemi-L.thickness.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi rh --sval %s/freesurfer/{1}/surf/rh.thickness --tval %s/Results/AnatSurfRH/fsaverage5/Thickness/{1}_space-fsaverage5_hemi-R.thickness.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi rh --sval %s/freesurfer/{1}/surf/rh.thickness --tval %s/Results/AnatSurfRH/fsaverage5/Thickness/{2}_space-fsaverage5_hemi-R.thickness.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
 
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfLH','fsnative','Thickness'));
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsnative','Thickness'));
-    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/lh.thickness %s/freesurfer/{1}/surf/lh.white %s/Results/AnatSurfLH/fsnative/Thickness/{1}_space-fsnative_hemi-L.thickness.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/lh.thickness %s/freesurfer/{1}/surf/lh.white %s/Results/AnatSurfLH/fsnative/Thickness/{2}_space-fsnative_hemi-L.thickness.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/rh.thickness %s/freesurfer/{1}/surf/rh.white %s/Results/AnatSurfRH/fsnative/Thickness/{1}_space-fsnative_hemi-R.thickness.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/rh.thickness %s/freesurfer/{1}/surf/rh.white %s/Results/AnatSurfRH/fsnative/Thickness/{2}_space-fsnative_hemi-R.thickness.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
 
 
@@ -86,20 +91,20 @@ if IsNeedOrganizeSurfWithParallel
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsaverage','Area'));
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsaverage5','Area'));
 
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi lh --sval %s/freesurfer/{1}/surf/lh.area --tval %s/Results/AnatSurfLH/fsaverage/Area/{1}_space-fsaverage_hemi-L.area.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi lh --sval %s/freesurfer/{1}/surf/lh.area --tval %s/Results/AnatSurfLH/fsaverage/Area/{2}_space-fsaverage_hemi-L.area.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi rh --sval %s/freesurfer/{1}/surf/rh.area --tval %s/Results/AnatSurfRH/fsaverage/Area/{1}_space-fsaverage_hemi-R.area.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi rh --sval %s/freesurfer/{1}/surf/rh.area --tval %s/Results/AnatSurfRH/fsaverage/Area/{2}_space-fsaverage_hemi-R.area.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi lh --sval %s/freesurfer/{1}/surf/lh.area --tval %s/Results/AnatSurfLH/fsaverage5/Area/{1}_space-fsaverage5_hemi-L.area.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi lh --sval %s/freesurfer/{1}/surf/lh.area --tval %s/Results/AnatSurfLH/fsaverage5/Area/{2}_space-fsaverage5_hemi-L.area.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi rh --sval %s/freesurfer/{1}/surf/rh.area --tval %s/Results/AnatSurfRH/fsaverage5/Area/{1}_space-fsaverage5_hemi-R.area.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi rh --sval %s/freesurfer/{1}/surf/rh.area --tval %s/Results/AnatSurfRH/fsaverage5/Area/{2}_space-fsaverage5_hemi-R.area.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
 
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfLH','fsnative','Area'));
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsnative','Area'));
-    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/lh.area %s/freesurfer/{1}/surf/lh.white %s/Results/AnatSurfLH/fsnative/Area/{1}_space-fsnative_hemi-L.area.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/lh.area %s/freesurfer/{1}/surf/lh.white %s/Results/AnatSurfLH/fsnative/Area/{2}_space-fsnative_hemi-L.area.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/rh.area %s/freesurfer/{1}/surf/rh.white %s/Results/AnatSurfRH/fsnative/Area/{1}_space-fsnative_hemi-R.area.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/rh.area %s/freesurfer/{1}/surf/rh.white %s/Results/AnatSurfRH/fsnative/Area/{2}_space-fsnative_hemi-R.area.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
 
 
@@ -110,20 +115,20 @@ if IsNeedOrganizeSurfWithParallel
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsaverage','Curv'));
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsaverage5','Curv'));
 
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi lh --sval %s/freesurfer/{1}/surf/lh.curv --tval %s/Results/AnatSurfLH/fsaverage/Curv/{1}_space-fsaverage_hemi-L.curv.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi lh --sval %s/freesurfer/{1}/surf/lh.curv --tval %s/Results/AnatSurfLH/fsaverage/Curv/{2}_space-fsaverage_hemi-L.curv.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi rh --sval %s/freesurfer/{1}/surf/rh.curv --tval %s/Results/AnatSurfRH/fsaverage/Curv/{1}_space-fsaverage_hemi-R.curv.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi rh --sval %s/freesurfer/{1}/surf/rh.curv --tval %s/Results/AnatSurfRH/fsaverage/Curv/{2}_space-fsaverage_hemi-R.curv.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi lh --sval %s/freesurfer/{1}/surf/lh.curv --tval %s/Results/AnatSurfLH/fsaverage5/Curv/{1}_space-fsaverage5_hemi-L.curv.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi lh --sval %s/freesurfer/{1}/surf/lh.curv --tval %s/Results/AnatSurfLH/fsaverage5/Curv/{2}_space-fsaverage5_hemi-L.curv.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi rh --sval %s/freesurfer/{1}/surf/rh.curv --tval %s/Results/AnatSurfRH/fsaverage5/Curv/{1}_space-fsaverage5_hemi-R.curv.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi rh --sval %s/freesurfer/{1}/surf/rh.curv --tval %s/Results/AnatSurfRH/fsaverage5/Curv/{2}_space-fsaverage5_hemi-R.curv.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
 
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfLH','fsnative','Curv'));
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsnative','Curv'));
-    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/lh.curv %s/freesurfer/{1}/surf/lh.white %s/Results/AnatSurfLH/fsnative/Curv/{1}_space-fsnative_hemi-L.curv.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/lh.curv %s/freesurfer/{1}/surf/lh.white %s/Results/AnatSurfLH/fsnative/Curv/{2}_space-fsnative_hemi-L.curv.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/rh.curv %s/freesurfer/{1}/surf/rh.white %s/Results/AnatSurfRH/fsnative/Curv/{1}_space-fsnative_hemi-R.curv.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/rh.curv %s/freesurfer/{1}/surf/rh.white %s/Results/AnatSurfRH/fsnative/Curv/{2}_space-fsnative_hemi-R.curv.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
 
 
@@ -134,20 +139,20 @@ if IsNeedOrganizeSurfWithParallel
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsaverage','Sulc'));
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsaverage5','Sulc'));
 
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi lh --sval %s/freesurfer/{1}/surf/lh.sulc --tval %s/Results/AnatSurfLH/fsaverage/Sulc/{1}_space-fsaverage_hemi-L.sulc.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi lh --sval %s/freesurfer/{1}/surf/lh.sulc --tval %s/Results/AnatSurfLH/fsaverage/Sulc/{2}_space-fsaverage_hemi-L.sulc.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi rh --sval %s/freesurfer/{1}/surf/rh.sulc --tval %s/Results/AnatSurfRH/fsaverage/Sulc/{1}_space-fsaverage_hemi-R.sulc.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi rh --sval %s/freesurfer/{1}/surf/rh.sulc --tval %s/Results/AnatSurfRH/fsaverage/Sulc/{2}_space-fsaverage_hemi-R.sulc.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi lh --sval %s/freesurfer/{1}/surf/lh.sulc --tval %s/Results/AnatSurfLH/fsaverage5/Sulc/{1}_space-fsaverage5_hemi-L.sulc.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi lh --sval %s/freesurfer/{1}/surf/lh.sulc --tval %s/Results/AnatSurfLH/fsaverage5/Sulc/{2}_space-fsaverage5_hemi-L.sulc.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi rh --sval %s/freesurfer/{1}/surf/rh.sulc --tval %s/Results/AnatSurfRH/fsaverage5/Sulc/{1}_space-fsaverage5_hemi-R.sulc.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi rh --sval %s/freesurfer/{1}/surf/rh.sulc --tval %s/Results/AnatSurfRH/fsaverage5/Sulc/{2}_space-fsaverage5_hemi-R.sulc.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
 
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfLH','fsnative','Sulc'));
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsnative','Sulc'));
-    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/lh.sulc %s/freesurfer/{1}/surf/lh.white %s/Results/AnatSurfLH/fsnative/Sulc/{1}_space-fsnative_hemi-L.sulc.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/lh.sulc %s/freesurfer/{1}/surf/lh.white %s/Results/AnatSurfLH/fsnative/Sulc/{2}_space-fsnative_hemi-L.sulc.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/rh.sulc %s/freesurfer/{1}/surf/rh.white %s/Results/AnatSurfRH/fsnative/Sulc/{1}_space-fsnative_hemi-R.sulc.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/rh.sulc %s/freesurfer/{1}/surf/rh.white %s/Results/AnatSurfRH/fsnative/Sulc/{2}_space-fsnative_hemi-R.sulc.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
 
 
@@ -158,20 +163,20 @@ if IsNeedOrganizeSurfWithParallel
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsaverage','Volume'));
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsaverage5','Volume'));
 
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi lh --sval %s/freesurfer/{1}/surf/lh.volume --tval %s/Results/AnatSurfLH/fsaverage/Volume/{1}_space-fsaverage_hemi-L.volume.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi lh --sval %s/freesurfer/{1}/surf/lh.volume --tval %s/Results/AnatSurfLH/fsaverage/Volume/{2}_space-fsaverage_hemi-L.volume.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi rh --sval %s/freesurfer/{1}/surf/rh.volume --tval %s/Results/AnatSurfRH/fsaverage/Volume/{1}_space-fsaverage_hemi-R.volume.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage --hemi rh --sval %s/freesurfer/{1}/surf/rh.volume --tval %s/Results/AnatSurfRH/fsaverage/Volume/{2}_space-fsaverage_hemi-R.volume.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi lh --sval %s/freesurfer/{1}/surf/lh.volume --tval %s/Results/AnatSurfLH/fsaverage5/Volume/{1}_space-fsaverage5_hemi-L.volume.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi lh --sval %s/freesurfer/{1}/surf/lh.volume --tval %s/Results/AnatSurfLH/fsaverage5/Volume/{2}_space-fsaverage5_hemi-L.volume.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi rh --sval %s/freesurfer/{1}/surf/rh.volume --tval %s/Results/AnatSurfRH/fsaverage5/Volume/{1}_space-fsaverage5_hemi-R.volume.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mri_surf2surf --srcsubject {1} --trgsubject fsaverage5 --hemi rh --sval %s/freesurfer/{1}/surf/rh.volume --tval %s/Results/AnatSurfRH/fsaverage5/Volume/{2}_space-fsaverage5_hemi-R.volume.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
 
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfLH','fsnative','Volume'));
     mkdir(fullfile(Cfg.WorkingDir,'Results','AnatSurfRH','fsnative','Volume'));
-    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/lh.volume %s/freesurfer/{1}/surf/lh.white %s/Results/AnatSurfLH/fsnative/Volume/{1}_space-fsnative_hemi-L.volume.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/lh.volume %s/freesurfer/{1}/surf/lh.white %s/Results/AnatSurfLH/fsnative/Volume/{2}_space-fsnative_hemi-L.volume.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/rh.volume %s/freesurfer/{1}/surf/rh.white %s/Results/AnatSurfRH/fsnative/Volume/{1}_space-fsnative_hemi-R.volume.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mris_convert -c %s/freesurfer/{1}/surf/rh.volume %s/freesurfer/{1}/surf/rh.white %s/Results/AnatSurfRH/fsnative/Volume/{2}_space-fsnative_hemi-R.volume.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
 
 end
@@ -192,6 +197,8 @@ else
         fmriprepfuncSessionPrefixSet{iFunSession}=['ses-',num2str(iFunSession),filesep,'func'];
     end
 end
+
+IsMultiEchoICATedana = isfield(Cfg,'MultiEcho') && isfield(Cfg.MultiEcho,'MultiEchoMethod') && strcmpi(Cfg.MultiEcho.MultiEchoMethod,'MultiEchoICA_Tedana');
 
 
 % The parpool might be shut down, restart it.
@@ -237,52 +244,54 @@ end
 
 
 fprintf('Organize aparcaseg files...\n');
-Command = sprintf('%s parallel -j %g mri_convert %s/freesurfer/{1}/mri/aparc+aseg.mgz  %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-T1w_desc-aparcaseg.nii.gz ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+Command = sprintf('%s parallel -j %g mri_convert %s/freesurfer/{1}/mri/aparc+aseg.mgz  %s/Results/AnatVolu/T1wSpace/{2}/{2}_space-T1w_desc-aparcaseg.nii.gz %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
 system(Command);
 fprintf('Organize aseg files...\n');
-Command = sprintf('%s parallel -j %g mri_convert %s/freesurfer/{1}/mri/aseg.mgz  %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-T1w_desc-aseg.nii.gz ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, SubjectIDString);
+Command = sprintf('%s parallel -j %g mri_convert %s/freesurfer/{1}/mri/aseg.mgz  %s/Results/AnatVolu/T1wSpace/{2}/{2}_space-T1w_desc-aseg.nii.gz %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
 system(Command);
 
 
 
 fprintf('Organize Anat Segment Volume...\n');
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/asegstats2table --subjects %s --meas volume --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Segment_Volume.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/asegstats2table --subjects %s --meas volume --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Segment_Volume.tsv');
 system(Command);
 
 fprintf('Organize freesurfer parcellation stats...\n');
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --meas thickness --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_Thickness_LH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --meas thickness --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_Thickness_LH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --meas thickness --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_Thickness_RH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --meas thickness --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_Thickness_RH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --meas area --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_Area_LH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --meas area --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_Area_LH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --meas area --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_Area_RH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --meas area --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_Area_RH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --meas volume --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_Volume_LH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --meas volume --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_Volume_LH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --meas volume --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_Volume_RH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --meas volume --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_Volume_RH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --meas meancurv --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_MeanCurv_LH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --meas meancurv --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_MeanCurv_LH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --meas meancurv --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_MeanCurv_RH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --meas meancurv --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_Aparc_Stats_MeanCurv_RH.tsv');
 system(Command);
 
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --parc aparc.a2009s --meas thickness --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_Thickness_LH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --parc aparc.a2009s --meas thickness --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_Thickness_LH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --parc aparc.a2009s --meas thickness --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_Thickness_RH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --parc aparc.a2009s --meas thickness --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_Thickness_RH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --parc aparc.a2009s --meas area --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_Area_LH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --parc aparc.a2009s --meas area --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_Area_LH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --parc aparc.a2009s --meas area --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_Area_RH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --parc aparc.a2009s --meas area --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_Area_RH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --parc aparc.a2009s --meas volume --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_Volume_LH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --parc aparc.a2009s --meas volume --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_Volume_LH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --parc aparc.a2009s --meas volume --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_Volume_RH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --parc aparc.a2009s --meas volume --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_Volume_RH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --parc aparc.a2009s --meas meancurv --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_MeanCurv_LH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi lh --parc aparc.a2009s --meas meancurv --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_MeanCurv_LH.tsv');
 system(Command);
-Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --parc aparc.a2009s --meas meancurv --tablefile %s%s', CommandInit, SubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_MeanCurv_RH.tsv');
+Command = sprintf('%s /opt/freesurfer/bin/fspython /opt/freesurfer/python/scripts/aparcstats2table --subjects %s --hemi rh --parc aparc.a2009s --meas meancurv --tablefile %s%s', CommandInit, FreeSurferSubjectIDString,WorkingDir,'/Results/AnatVolu/Anat_AparcA2009s_Stats_MeanCurv_RH.tsv');
 system(Command);
+
+local_restore_subject_ids_in_text_files(fullfile(Cfg.WorkingDir,'Results','AnatVolu'), '*.tsv', FreeSurferSubjectID, Cfg.SubjectID);
 
 
 if Cfg.FunctionalSessionNumber==0 %YAN Chao-Gan, 210414. If no anatomical images
@@ -291,7 +300,9 @@ end
 
 
 fprintf('Organize functional surface files...\n');
-if Cfg.FunctionalSessionNumber==1
+if IsMultiEchoICATedana
+    fprintf('Skip organizing functional surface files, because y_MultiEchoICA_Tedana has already copied them into FunSurf and FunSurfW.\n');
+elseif Cfg.FunctionalSessionNumber==1
     mkdir(fullfile(Cfg.WorkingDir,'FunSurfW'));
     mkdir(fullfile(Cfg.WorkingDir,'FunSurf'));
     parfor i=1:Cfg.SubjectNum
@@ -316,7 +327,9 @@ end
 
 
 fprintf('Organize functional volume files...\n');
-if Cfg.FunctionalSessionNumber==1
+if IsMultiEchoICATedana
+    fprintf('Skip organizing functional volume files, because y_MultiEchoICA_Tedana has already copied them into FunVolu and FunVoluW.\n');
+elseif Cfg.FunctionalSessionNumber==1
     mkdir(fullfile(Cfg.WorkingDir,'FunVoluW'));
     mkdir(fullfile(Cfg.WorkingDir,'FunVolu'));
     parfor i=1:Cfg.SubjectNum
@@ -340,7 +353,9 @@ end
 
 
 fprintf('Organize functional mask files...\n');
-if Cfg.FunctionalSessionNumber==1
+if IsMultiEchoICATedana
+    fprintf('Skip organizing functional mask files, because y_MultiEchoICA_Tedana has already copied them into Masks/AutoMasks.\n');
+elseif Cfg.FunctionalSessionNumber==1
     mkdir(fullfile(Cfg.WorkingDir,'Masks','AutoMasks'));
     parfor i=1:Cfg.SubjectNum
         copyfile(fullfile(Cfg.WorkingDir,'fmriprep',Cfg.SubjectID{i},'func','*space-MNI152NLin2009cAsym_*desc-brain_mask.nii.gz'),fullfile(Cfg.WorkingDir,'Masks','AutoMasks'));
@@ -361,9 +376,9 @@ end
 if IsNeedOrganizeSurfWithParallel
     fprintf('Organize fsnative mask files...\n');
     mkdir(fullfile(Cfg.WorkingDir,'Masks',filesep,'MasksForFun',filesep,'Masks_SurfSpace'));
-    Command = sprintf('%s parallel -j %g mris_convert --label %s/freesurfer/{1}/label/lh.cortex.label 1 %s/freesurfer/{1}/surf/lh.white %s/Masks/MasksForFun/Masks_SurfSpace/{1}_lh_cortex_label.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mris_convert --label %s/freesurfer/{1}/label/lh.cortex.label 1 %s/freesurfer/{1}/surf/lh.white %s/Masks/MasksForFun/Masks_SurfSpace/{2}_lh_cortex_label.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
-    Command = sprintf('%s parallel -j %g mris_convert --label %s/freesurfer/{1}/label/rh.cortex.label 1 %s/freesurfer/{1}/surf/rh.white %s/Masks/MasksForFun/Masks_SurfSpace/{1}_rh_cortex_label.gii ::: %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, SubjectIDString);
+    Command = sprintf('%s parallel -j %g mris_convert --label %s/freesurfer/{1}/label/rh.cortex.label 1 %s/freesurfer/{1}/surf/rh.white %s/Masks/MasksForFun/Masks_SurfSpace/{2}_rh_cortex_label.gii %s', CommandInit, Cfg.ParallelWorkersNumber, WorkingDir, WorkingDir, WorkingDir, LinkedFreeSurferAndSubjectIDString);
     system(Command);
 end
 
@@ -491,3 +506,74 @@ end
 y_GenerateQCHTML(Cfg);
 
 fprintf('Organize fmriprep files finished!\n');
+
+end
+
+
+function FreeSurferSubjectID = local_resolve_freesurfer_subject_id(Cfg, SubjectID)
+
+FreeSurferSubjectID = SubjectID;
+FreeSurferDir = fullfile(Cfg.WorkingDir,'freesurfer');
+if ~exist(FreeSurferDir,'dir')
+    return;
+end
+
+DirList = dir(fullfile(FreeSurferDir, [SubjectID '*']));
+DirList = DirList([DirList.isdir]);
+if isempty(DirList)
+    return;
+end
+
+CandidateNameSet = sort({DirList.name});
+
+if any(strcmp(CandidateNameSet, SubjectID))
+    FreeSurferSubjectID = SubjectID;
+    return;
+end
+
+Session1Candidate = [SubjectID '_ses-1'];
+if any(strcmp(CandidateNameSet, Session1Candidate))
+    FreeSurferSubjectID = Session1Candidate;
+    return;
+end
+
+SessionCandidateSet = CandidateNameSet(~cellfun('isempty', regexp(CandidateNameSet, ['^' regexptranslate('escape', SubjectID) '_ses-[0-9]+$'], 'once')));
+if numel(SessionCandidateSet) == 1
+    FreeSurferSubjectID = SessionCandidateSet{1};
+    return;
+end
+
+FreeSurferSubjectID = CandidateNameSet{1};
+
+end
+
+
+function local_restore_subject_ids_in_text_files(TargetDir, FilePattern, SourceSubjectIDCell, TargetSubjectIDCell)
+
+DirList = dir(fullfile(TargetDir, FilePattern));
+for iFile = 1:length(DirList)
+    FileName = fullfile(TargetDir, DirList(iFile).name);
+    fid = fopen(FileName, 'r');
+    if fid == -1
+        continue;
+    end
+    FileText = fread(fid, '*char')';
+    fclose(fid);
+
+    OriginalText = FileText;
+    for iSubject = 1:length(SourceSubjectIDCell)
+        if ~strcmp(SourceSubjectIDCell{iSubject}, TargetSubjectIDCell{iSubject})
+            FileText = strrep(FileText, SourceSubjectIDCell{iSubject}, TargetSubjectIDCell{iSubject});
+        end
+    end
+
+    if ~strcmp(FileText, OriginalText)
+        fid = fopen(FileName, 'w');
+        if fid ~= -1
+            fwrite(fid, FileText, 'char');
+            fclose(fid);
+        end
+    end
+end
+
+end
