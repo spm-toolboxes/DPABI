@@ -118,12 +118,13 @@ if ~isempty(FailedID)
             system(Command);
         end
 
-        if exist(fullfile(Cfg.WorkingDir,'fmriprep','sourcedata','freesurfer',FailedID{i}))
+        FreeSurferSubjectID = local_resolve_freesurfer_subject_id_from_dir(fullfile(Cfg.WorkingDir,'fmriprep','sourcedata','freesurfer'), FailedID{i});
+        if exist(fullfile(Cfg.WorkingDir,'fmriprep','sourcedata','freesurfer',FreeSurferSubjectID))
             %status = rmdir(fullfile(Cfg.WorkingDir,'fmriprep',FailedID{i}),'s');
             if isdeployed && (isunix && (~ismac)) % If running within docker with compiled version
-                Command=sprintf('rm -rf %s/fmriprep/sourcedata/freesurfer/%s', Cfg.WorkingDir,FailedID{i});
+                Command=sprintf('rm -rf %s/fmriprep/sourcedata/freesurfer/%s', Cfg.WorkingDir,FreeSurferSubjectID);
             else
-                Command=sprintf('%s cgyan/dpabi rm -rf /data/fmriprep/sourcedata/freesurfer/%s', CommandInit,FailedID{i});
+                Command=sprintf('%s cgyan/dpabi rm -rf /data/fmriprep/sourcedata/freesurfer/%s', CommandInit,FreeSurferSubjectID);
             end
             system(Command);
         end
@@ -162,10 +163,13 @@ if ~isempty(NeedReRunID) %(Cfg.Isfmriprep==1)
     
 
     if isdeployed && (isunix && (~ismac)) % If running within docker with compiled version
-        Command=sprintf('export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/fsl-6.0.5.1/lib && parallel -j %g /opt/conda/envs/fmriprep/bin/fmriprep %s/BIDS %s/fmriprep participant --resource-monitor', Cfg.ParallelWorkersNumber, Cfg.WorkingDir, Cfg.WorkingDir);
+        Command=sprintf('export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/fsl-6.0.5.1/lib && parallel -j %g fmriprep %s/BIDS %s/fmriprep participant --resource-monitor', Cfg.ParallelWorkersNumber, Cfg.WorkingDir, Cfg.WorkingDir);
+        %Command=sprintf('export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/fsl-6.0.5.1/lib && parallel -j %g /opt/conda/envs/fmriprep/bin/fmriprep %s/BIDS %s/fmriprep participant --resource-monitor', Cfg.ParallelWorkersNumber, Cfg.WorkingDir, Cfg.WorkingDir);
     else
-        Command=sprintf('%s cgyan/dpabi parallel -j %g /opt/conda/envs/fmriprep/bin/fmriprep /data/BIDS /data/fmriprep participant --resource-monitor', CommandInit, Cfg.ParallelWorkersNumber );
+        Command=sprintf('%s cgyan/dpabi parallel -j %g fmriprep /data/BIDS /data/fmriprep participant --resource-monitor', CommandInit, Cfg.ParallelWorkersNumber);
+        %Command=sprintf('%s cgyan/dpabi parallel -j %g /opt/conda/envs/fmriprep/bin/fmriprep /data/BIDS /data/fmriprep participant --resource-monitor', CommandInit, Cfg.ParallelWorkersNumber);
     end
+
 
     if Cfg.ParallelWorkersNumber~=0
         Command = sprintf('%s --nthreads 1 --omp-nthreads 1', Command);
@@ -284,9 +288,11 @@ end
 function HasMissingFiles = CheckMissingFiles(WorkingDir,SubjectID,FunctionalSessionNumber)
 %YAN Chao-Gan 210205. Check Missing Files according for fmriprep
 HasMissingFiles = 0;
-DirFiles_surf=dir(fullfile(WorkingDir,'freesurfer',SubjectID,'surf','*'));
+FreeSurferSubjectID = local_resolve_freesurfer_subject_id_from_dir(fullfile(WorkingDir,'freesurfer'), SubjectID);
+DirFiles_surf=dir(fullfile(WorkingDir,'freesurfer',FreeSurferSubjectID,'surf','*'));
 if length(DirFiles_surf)==0   %YAN Chao-Gan, 221018. 
-    DirFiles_surf=dir(fullfile(WorkingDir,'fmriprep','sourcedata','freesurfer',SubjectID,'surf','*'));
+    FreeSurferSubjectID = local_resolve_freesurfer_subject_id_from_dir(fullfile(WorkingDir,'fmriprep','sourcedata','freesurfer'), SubjectID);
+    DirFiles_surf=dir(fullfile(WorkingDir,'fmriprep','sourcedata','freesurfer',FreeSurferSubjectID,'surf','*'));
 end
 DirFiles_func=dir(fullfile(WorkingDir,'fmriprep',SubjectID,'func','*'));
 if length(DirFiles_func)<30   %YAN Chao-Gan, 211223. ICA-AROMA will have more files. %length(DirFiles_func)~=31
@@ -300,5 +306,40 @@ if (length(DirFiles_surf)~=84 && length(DirFiles_surf)~=94 && length(DirFiles_su
     HasMissingFiles = 1;
 end
 
+
+
+function FreeSurferSubjectID = local_resolve_freesurfer_subject_id_from_dir(FreeSurferDir, SubjectID)
+
+FreeSurferSubjectID = SubjectID;
+if ~exist(FreeSurferDir,'dir')
+    return;
+end
+
+DirList = dir(fullfile(FreeSurferDir, [SubjectID '*']));
+DirList = DirList([DirList.isdir]);
+if isempty(DirList)
+    return;
+end
+
+CandidateNameSet = sort({DirList.name});
+
+if any(strcmp(CandidateNameSet, SubjectID))
+    FreeSurferSubjectID = SubjectID;
+    return;
+end
+
+Session1Candidate = [SubjectID '_ses-1'];
+if any(strcmp(CandidateNameSet, Session1Candidate))
+    FreeSurferSubjectID = Session1Candidate;
+    return;
+end
+
+SessionCandidateSet = CandidateNameSet(~cellfun('isempty', regexp(CandidateNameSet, ['^' regexptranslate('escape', SubjectID) '_ses-[0-9]+$'], 'once')));
+if numel(SessionCandidateSet) == 1
+    FreeSurferSubjectID = SessionCandidateSet{1};
+    return;
+end
+
+FreeSurferSubjectID = CandidateNameSet{1};
 
 

@@ -768,9 +768,11 @@ if (Cfg.Isfmriprep==1)
         
         
         if isdeployed && (isunix && (~ismac)) % If running within docker with compiled version
-            Command=sprintf('export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/fsl-6.0.5.1/lib && parallel -j %g /opt/conda/envs/fmriprep/bin/fmriprep %s/BIDS %s/fmriprep participant --resource-monitor', Cfg.ParallelWorkersNumber, Cfg.WorkingDir, Cfg.WorkingDir);
+            Command=sprintf('export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/fsl-6.0.5.1/lib && parallel -j %g fmriprep %s/BIDS %s/fmriprep participant --resource-monitor', Cfg.ParallelWorkersNumber, Cfg.WorkingDir, Cfg.WorkingDir);
+            %Command=sprintf('export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/fsl-6.0.5.1/lib && parallel -j %g /opt/conda/envs/fmriprep/bin/fmriprep %s/BIDS %s/fmriprep participant --resource-monitor', Cfg.ParallelWorkersNumber, Cfg.WorkingDir, Cfg.WorkingDir);
         else
-            Command=sprintf('%s cgyan/dpabi parallel -j %g /opt/conda/envs/fmriprep/bin/fmriprep /data/BIDS /data/fmriprep participant --resource-monitor', CommandInit, Cfg.ParallelWorkersNumber);
+            Command=sprintf('%s cgyan/dpabi parallel -j %g fmriprep /data/BIDS /data/fmriprep participant --resource-monitor', CommandInit, Cfg.ParallelWorkersNumber);
+            %Command=sprintf('%s cgyan/dpabi parallel -j %g /opt/conda/envs/fmriprep/bin/fmriprep /data/BIDS /data/fmriprep participant --resource-monitor', CommandInit, Cfg.ParallelWorkersNumber);
         end
         
         if Cfg.ParallelWorkersNumber~=0
@@ -849,6 +851,14 @@ else
     CommandInit=sprintf('%s -e SUBJECTS_DIR=/data/freesurfer cgyan/dpabi', CommandInit);
     CommandParallel=sprintf('%s parallel -j %g', CommandInit, Cfg.ParallelWorkersNumber );
     WorkingDir='/data';
+end
+
+
+% Tedana ICA
+if isfield(Cfg,'MultiEcho') && isfield(Cfg.MultiEcho,'MultiEchoMethod') && strcmpi(Cfg.MultiEcho.MultiEchoMethod,'MultiEchoICA_Tedana') %YAN Chao-Gan, 20260504.
+    if ~exist([Cfg.WorkingDir,filesep,'tedana'],'dir')
+        y_MultiEchoICA_Tedana(Cfg);
+    end
 end
 
 
@@ -1066,7 +1076,10 @@ if (Cfg.IsCovremove==1) && (Cfg.IsBasedOnFunSurf==0) %&& (strcmpi(Cfg.Covremove.
             [RefData,RefVox,RefHeader]=y_ReadRPI(RefFile,1);
 
             %Use new logic according to fmriprep changes
-            DirFile=dir(fullfile(Cfg.WorkingDir,'Results','AnatVolu','MNISpace',Cfg.SubjectID{i},[Cfg.SubjectID{i},'*_space-MNI152NLin2009cAsym_*label-WM_probseg.nii*']));
+            DirFile=dir(fullfile(Cfg.WorkingDir,'Results','AnatVolu','MNISpace',Cfg.SubjectID{i},'*_space-MNI152NLin2009cAsym_*label-WM_probseg.nii*'));
+            if isempty(DirFile)
+                error('Cannot find the MNI-space WM segmentation file for %s in %s.', Cfg.SubjectID{i}, fullfile(Cfg.WorkingDir,'Results','AnatVolu','MNISpace',Cfg.SubjectID{i}));
+            end
             File=fullfile(Cfg.WorkingDir,'Results','AnatVolu','MNISpace',Cfg.SubjectID{i},DirFile(1).name);
             [OutVolume OutHead] = y_Reslice(File,[Cfg.WorkingDir,filesep,'Masks',filesep,'SegmentationMasks',filesep,'MNIFunSpace_',Cfg.SubjectID{i},'_WM.nii'],RefVox,1, RefFile);
             OutHead.pinfo = [1;0;0]; OutHead.dt    =[16,0];
@@ -1075,7 +1088,10 @@ if (Cfg.IsCovremove==1) && (Cfg.IsBasedOnFunSurf==0) %&& (strcmpi(Cfg.Covremove.
             y_Write(OutVolume>Cfg.Covremove.WM.MaskThreshold,OutHead,[Cfg.WorkingDir,filesep,'Masks',filesep,'SegmentationMasks',filesep,'MNIFunSpace_ThrdMask_',Cfg.SubjectID{i},'_WM.nii']);
             
             %Use new logic according to fmriprep changes
-            DirFile=dir(fullfile(Cfg.WorkingDir,'Results','AnatVolu','MNISpace',Cfg.SubjectID{i},[Cfg.SubjectID{i},'*_space-MNI152NLin2009cAsym_*label-CSF_probseg.nii*']));
+            DirFile=dir(fullfile(Cfg.WorkingDir,'Results','AnatVolu','MNISpace',Cfg.SubjectID{i},'*_space-MNI152NLin2009cAsym_*label-CSF_probseg.nii*'));
+            if isempty(DirFile)
+                error('Cannot find the MNI-space CSF segmentation file for %s in %s.', Cfg.SubjectID{i}, fullfile(Cfg.WorkingDir,'Results','AnatVolu','MNISpace',Cfg.SubjectID{i}));
+            end
             File=fullfile(Cfg.WorkingDir,'Results','AnatVolu','MNISpace',Cfg.SubjectID{i},DirFile(1).name);
             [OutVolume OutHead] = y_Reslice(File,[Cfg.WorkingDir,filesep,'Masks',filesep,'SegmentationMasks',filesep,'MNIFunSpace_',Cfg.SubjectID{i},'_CSF.nii'],RefVox,1, RefFile);
             OutHead.pinfo = [1;0;0]; OutHead.dt    =[16,0];
