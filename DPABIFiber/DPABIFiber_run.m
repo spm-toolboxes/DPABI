@@ -312,7 +312,7 @@ end
 
 
 
-%Reconstructing with qsiprep
+%Reconstructing with qsirecon
 if (Cfg.Isqsirecon==1)
 
     % Close parpool
@@ -384,7 +384,7 @@ if (Cfg.Isqsirecon==1)
         Command = sprintf('%s -w /data/qsireconwork/{1}', Command); %Specify the working dir for qsiprep
         Command = sprintf('%s  --participant-label {1} ::: %s', Command, SubjectIDString);
         
-        fprintf('Reconstructing with qsiprep, this process is very time consuming, please be patient...\n');
+        fprintf('Reconstructing with qsirecon, this process is very time consuming, please be patient...\n');
         
         system(Command);
     end
