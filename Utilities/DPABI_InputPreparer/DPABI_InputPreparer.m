@@ -13,7 +13,7 @@ function varargout = DPABI_InputPreparer(varargin)
 %-----------------------------------------------------------
 % Mail to Author:  <a href="larslu@foxmail.com">Bin Lu</a> 
 
-% Last Modified by GUIDE v2.5 27-Apr-2026 21:49:56
+% Last Modified by GUIDE v2.5 14-May-2026 16:06:26
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -81,6 +81,8 @@ handles.Cfg.FunSessionNumber = 1;
 handles.Cfg.FieldFunFolderNumber = 1;
 handles.Cfg.FieldDwiFolderNumber = 1;
 handles.Cfg.IsMultiEchoFunAll = zeros(handles.Cfg.FunSessionNumber,1);
+handles.Cfg.IsFunAllRef = 0;
+handles.Cfg.IsCurrentFunSBRef = 0;
 handles.Cfg.IsUIH5T = 0;
 handles.Cfg.SeriesName.T1 = '';
 handles.Cfg.SeriesName.T1Plus = {};
@@ -89,6 +91,7 @@ handles.Cfg.SeriesName.Dwi = '';
 handles.Cfg.SeriesName.FieldFun = {};
 handles.Cfg.SeriesName.FieldDwi = {};
 handles.Cfg.SeriesName.FunAll = {};
+handles.Cfg.SeriesName.FunSBRef = {};
 handles.Cfg.SeriesIndex.T1 = 1;
 handles.Cfg.SeriesIndex.T1Plus = [1];
 handles.Cfg.SeriesIndex.T2 = 1;
@@ -96,6 +99,7 @@ handles.Cfg.SeriesIndex.Dwi = 1;
 handles.Cfg.SeriesIndex.FieldFun = [1];
 handles.Cfg.SeriesIndex.FieldDwi = [1];
 handles.Cfg.SeriesIndex.FunAll = [1];
+handles.Cfg.SeriesIndex.FunSBRef = [1];
 handles.Cfg.SeriesFileNumber.List.T1 = 0;
 handles.Cfg.SeriesFileNumber.List.T1Plus = {0};
 handles.Cfg.SeriesFileNumber.List.T2 = 0;
@@ -103,6 +107,7 @@ handles.Cfg.SeriesFileNumber.List.Dwi = 0;
 handles.Cfg.SeriesFileNumber.List.FieldFun = {0};
 handles.Cfg.SeriesFileNumber.List.FieldDwi = {0};
 handles.Cfg.SeriesFileNumber.List.FunAll = {0};
+handles.Cfg.SeriesFileNumber.List.FunSBRef = {0};
 handles.Cfg.SeriesFileNumber.Flag.T1 = 1;
 handles.Cfg.SeriesFileNumber.Flag.T1Plus = [1];
 handles.Cfg.SeriesFileNumber.Flag.T2 = 1;
@@ -110,6 +115,7 @@ handles.Cfg.SeriesFileNumber.Flag.Dwi = 1;
 handles.Cfg.SeriesFileNumber.Flag.FieldFun = [1];
 handles.Cfg.SeriesFileNumber.Flag.FieldDwi = [1];
 handles.Cfg.SeriesFileNumber.Flag.FunAll = [1];
+handles.Cfg.SeriesFileNumber.Flag.FunSBRef = [1];
 handles.Cfg.SeriesFileNumber.LowLimitMode.T1 = 0; % Add lower limit mode for setting number of files for a series, Bin Lu, 20220919
 handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus = {0};
 handles.Cfg.SeriesFileNumber.LowLimitMode.T2 = 0; 
@@ -117,6 +123,7 @@ handles.Cfg.SeriesFileNumber.LowLimitMode.Dwi = 0;
 handles.Cfg.SeriesFileNumber.LowLimitMode.FieldFun = {0};
 handles.Cfg.SeriesFileNumber.LowLimitMode.FieldDwi = {0};
 handles.Cfg.SeriesFileNumber.LowLimitMode.FunAll = {0};
+handles.Cfg.SeriesFileNumber.LowLimitMode.FunSBRef = {0};
 handles.Cfg.SeriesFileNumber.LowThreshold.T1 = 0; % Add lower threshold for setting number of files for a series, Bin Lu, 20220919
 handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus = {0};
 handles.Cfg.SeriesFileNumber.LowThreshold.T2 = 0;
@@ -124,6 +131,7 @@ handles.Cfg.SeriesFileNumber.LowThreshold.Dwi = 0;
 handles.Cfg.SeriesFileNumber.LowThreshold.FieldFun = {0};
 handles.Cfg.SeriesFileNumber.LowThreshold.FieldDwi = {0};
 handles.Cfg.SeriesFileNumber.LowThreshold.FunAll = {0};
+handles.Cfg.SeriesFileNumber.LowThreshold.FunSBRef = {0};
 handles.Cfg.SeriesFileNumber.Percent.T1 = 0; % Record percentage of each type number of files for a series, Bin Lu, 20220919
 handles.Cfg.SeriesFileNumber.Percent.T1Plus = {[0]};
 handles.Cfg.SeriesFileNumber.Percent.T2 = 0;
@@ -131,9 +139,11 @@ handles.Cfg.SeriesFileNumber.Percent.Dwi = 0;
 handles.Cfg.SeriesFileNumber.Percent.FieldFun = {[0]};
 handles.Cfg.SeriesFileNumber.Percent.FieldDwi = {[0]};
 handles.Cfg.SeriesFileNumber.Percent.FunAll = {[0]};
+handles.Cfg.SeriesFileNumber.Percent.FunSBRef = {[0]};
 handles.Cfg.SxT1PlusList = {'eT1W','TI2'};
 handles.Cfg.SxT1PlusFlag = 1;
 handles.Cfg.SxFunRawList = {'FunRaw'};
+handles.Cfg.SxFunSBRefList = {'FunRaw SBRef'};
 handles.Cfg.SxFunRawFlag = 1;
 handles.Cfg.SxFieldFunList = {'FieldMap_Folder1'};
 handles.Cfg.SxFieldFunFlag = 1;
@@ -545,7 +555,7 @@ set(handles.pushbuttonRun,'Enable','off','String','Finished');
 set(handles.pushbuttonCallDPARSFA,'Enable','on');%,'BackgroundColor',[154/256,255/256,154/256]
 set(handles.pushbuttonCallDPABISurf,'Enable','on');%,'BackgroundColor',[154/256,255/256,154/256]
 
-disp([newline, 'All conversion is finished. Enjoy it!']);
+disp([newline, 'Conversion completed successfully. Enjoy!']);
 % disp([newline, 'All the conversion is finished! You can directly call DPARSFA or DPABISurf in the pervious figure now!']);
 guidata(hObject,handles);
 
@@ -929,8 +939,12 @@ function popupmenuFunAllFileNumber_Callback(hObject, eventdata, handles)
 % hObject    handle to popupmenuFunAllFileNumber (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-SessionFlag = handles.Cfg.SxFunRawFlag;
-handles.Cfg.SeriesFileNumber.Flag.FunAll(SessionFlag) = get(handles.popupmenuFunAllFileNumber,'Value');
+[SessionFlag, IsFunSBRef] = GetCurrentFunRawFlag(handles);
+if IsFunSBRef
+    handles.Cfg.SeriesFileNumber.Flag.FunSBRef(SessionFlag) = get(handles.popupmenuFunAllFileNumber,'Value');
+else
+    handles.Cfg.SeriesFileNumber.Flag.FunAll(SessionFlag) = get(handles.popupmenuFunAllFileNumber,'Value');
+end
 guidata(hObject,handles);
 % Hints: contents = cellstr(get(hObject,'String')) returns popupmenuFunAllFileNumber contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from popupmenuFunAllFileNumber
@@ -1018,9 +1032,16 @@ function popupmenuSxFunRaw_Callback(hObject, eventdata, handles)
 % hObject    handle to popupmenuSxFunRaw (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-handles.Cfg.SxFunRawFlag = get(handles.popupmenuSxFunRaw,'Value');
-UpdateDisplay(handles);
+RawFlag = get(handles.popupmenuSxFunRaw,'Value');
+if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef && RawFlag > handles.Cfg.FunSessionNumber
+    handles.Cfg.SxFunRawFlag = RawFlag - handles.Cfg.FunSessionNumber;
+    handles.Cfg.IsCurrentFunSBRef = 1;
+else
+    handles.Cfg.SxFunRawFlag = RawFlag;
+    handles.Cfg.IsCurrentFunSBRef = 0;
+end
 guidata(hObject,handles);
+UpdateDisplay(handles);
 % Hints: contents = cellstr(get(hObject,'String')) returns popupmenuSxFunRaw contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from popupmenuSxFunRaw
 
@@ -1043,20 +1064,33 @@ function popupmenuFunAll_Callback(hObject, eventdata, handles)
 % hObject    handle to popupmenuFunAll (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-SessionFlag = handles.Cfg.SxFunRawFlag;
-handles.Cfg.SeriesIndex.FunAll(SessionFlag) = get(handles.popupmenuFunAll,'Value');
-handles.Cfg.SeriesName.FunAll{SessionFlag} = handles.Cfg.Demo.SeriesNames{handles.Cfg.SeriesIndex.FunAll(SessionFlag)};
+[SessionFlag, IsFunSBRef] = GetCurrentFunRawFlag(handles);
+SeriesIndex = get(handles.popupmenuFunAll,'Value');
 set(handles.popupmenuFunAllFileNumber,'String','Computing...');
 drawnow;
-[handles.Cfg.SeriesFileNumber.List.FunAll{SessionFlag},Percentage] = CheckFileNumber(hObject, handles,handles.Cfg.SeriesIndex.FunAll(SessionFlag));
-handles.Cfg.SeriesFileNumber.Flag.FunAll(SessionFlag) = 1;
-handles.Cfg.SeriesFileNumber.Percent.FunAll{SessionFlag} = Percentage;
-% Added 20210722, add percentage info to reduce wrong selections
-DisplayString = cellfun(@(Num,Per) sprintf('%d (%.0f%%)',Num,Per*100),num2cell(handles.Cfg.SeriesFileNumber.List.FunAll{SessionFlag}),num2cell(Percentage),'UniformOutput',false);
-set(handles.popupmenuFunAllFileNumber,...
-    'String',DisplayString,...
-    'Value',handles.Cfg.SeriesFileNumber.Flag.FunAll(SessionFlag),...
-    'Enable','on');
+if IsFunSBRef
+    handles.Cfg.SeriesIndex.FunSBRef(SessionFlag) = SeriesIndex;
+    handles.Cfg.SeriesName.FunSBRef{SessionFlag} = handles.Cfg.Demo.SeriesNames{SeriesIndex};
+    [handles.Cfg.SeriesFileNumber.List.FunSBRef{SessionFlag},Percentage] = CheckFileNumber(hObject, handles,SeriesIndex);
+    handles.Cfg.SeriesFileNumber.Flag.FunSBRef(SessionFlag) = 1;
+    handles.Cfg.SeriesFileNumber.Percent.FunSBRef{SessionFlag} = Percentage;
+    DisplayString = cellfun(@(Num,Per) sprintf('%d (%.0f%%)',Num,Per*100),num2cell(handles.Cfg.SeriesFileNumber.List.FunSBRef{SessionFlag}),num2cell(Percentage),'UniformOutput',false);
+    set(handles.popupmenuFunAllFileNumber,...
+        'String',DisplayString,...
+        'Value',handles.Cfg.SeriesFileNumber.Flag.FunSBRef(SessionFlag),...
+        'Enable','on');
+else
+    handles.Cfg.SeriesIndex.FunAll(SessionFlag) = SeriesIndex;
+    handles.Cfg.SeriesName.FunAll{SessionFlag} = handles.Cfg.Demo.SeriesNames{SeriesIndex};
+    [handles.Cfg.SeriesFileNumber.List.FunAll{SessionFlag},Percentage] = CheckFileNumber(hObject, handles,SeriesIndex);
+    handles.Cfg.SeriesFileNumber.Flag.FunAll(SessionFlag) = 1;
+    handles.Cfg.SeriesFileNumber.Percent.FunAll{SessionFlag} = Percentage;
+    DisplayString = cellfun(@(Num,Per) sprintf('%d (%.0f%%)',Num,Per*100),num2cell(handles.Cfg.SeriesFileNumber.List.FunAll{SessionFlag}),num2cell(Percentage),'UniformOutput',false);
+    set(handles.popupmenuFunAllFileNumber,...
+        'String',DisplayString,...
+        'Value',handles.Cfg.SeriesFileNumber.Flag.FunAll(SessionFlag),...
+        'Enable','on');
+end
 guidata(hObject,handles);
 % Hints: contents = cellstr(get(hObject,'String')) returns popupmenuFunAll contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from popupmenuFunAll
@@ -1402,6 +1436,8 @@ switch Flag
         handles.Cfg.IsOrganizeDwi = 0;
         handles.Cfg.IsOrganizeFieldFun = 0;
         handles.Cfg.IsOrganizeFieldDwi = 0;
+        handles.Cfg.IsFunAllRef = 0;
+        handles.Cfg.IsCurrentFunSBRef = 0;
         handles.Cfg.FunSessionNumber = 1;
         handles.Cfg.FieldFunFolderNumber = 1;
         handles.Cfg.FieldDwiFolderNumber = 1;
@@ -1409,45 +1445,53 @@ switch Flag
         handles.Cfg.SeriesName.T2 = '';
         handles.Cfg.SeriesName.Dwi = '';
         handles.Cfg.SeriesName.FunAll = {};
+        handles.Cfg.SeriesName.FunSBRef = {};
         handles.Cfg.SeriesName.FieldFun = {};
         handles.Cfg.SeriesName.FieldDwi = {};
         handles.Cfg.SeriesIndex.T1 = 1;
         handles.Cfg.SeriesIndex.T2 = 1;
         handles.Cfg.SeriesIndex.Dwi = 1;
         handles.Cfg.SeriesIndex.FunAll = [1];
+        handles.Cfg.SeriesIndex.FunSBRef = [1];
         handles.Cfg.SeriesIndex.FieldFun = [1];
         handles.Cfg.SeriesIndex.FieldDwi = [1];
         handles.Cfg.SeriesFileNumber.List.T1 = 0;
         handles.Cfg.SeriesFileNumber.List.T2 = 0;
         handles.Cfg.SeriesFileNumber.List.Dwi = 0;
         handles.Cfg.SeriesFileNumber.List.FunAll = {0};
+        handles.Cfg.SeriesFileNumber.List.FunSBRef = {0};
         handles.Cfg.SeriesFileNumber.List.FieldFun = {0};
         handles.Cfg.SeriesFileNumber.List.FieldDwi = {0};
         handles.Cfg.SeriesFileNumber.Flag.T1 = 1;
         handles.Cfg.SeriesFileNumber.Flag.T2 = 1;
         handles.Cfg.SeriesFileNumber.Flag.Dwi = 1;
         handles.Cfg.SeriesFileNumber.Flag.FunAll = [1];
+        handles.Cfg.SeriesFileNumber.Flag.FunSBRef = [1];
         handles.Cfg.SeriesFileNumber.Flag.FieldFun = [1];
         handles.Cfg.SeriesFileNumber.Flag.FieldDwi = [1];
         handles.Cfg.SeriesFileNumber.LowLimitMode.T1 = 0; % Add lower limit mode for setting number of files for a series, Bin Lu, 20220919
         handles.Cfg.SeriesFileNumber.LowLimitMode.T2 = 0;
         handles.Cfg.SeriesFileNumber.LowLimitMode.Dwi = 0;
         handles.Cfg.SeriesFileNumber.LowLimitMode.FunAll = {0};
+        handles.Cfg.SeriesFileNumber.LowLimitMode.FunSBRef = {0};
         handles.Cfg.SeriesFileNumber.LowLimitMode.FieldFun = {0};
         handles.Cfg.SeriesFileNumber.LowLimitMode.FieldDwi = {0};
         handles.Cfg.SeriesFileNumber.LowThreshold.T1 = 0;
         handles.Cfg.SeriesFileNumber.LowThreshold.T2 = 0;
         handles.Cfg.SeriesFileNumber.LowThreshold.Dwi = 0;
         handles.Cfg.SeriesFileNumber.LowThreshold.FunAll = {0};
+        handles.Cfg.SeriesFileNumber.LowThreshold.FunSBRef = {0};
         handles.Cfg.SeriesFileNumber.LowThreshold.FieldFun = {0};
         handles.Cfg.SeriesFileNumber.LowThreshold.FieldDwi = {0};
         handles.Cfg.SeriesFileNumber.Percent.T1 = 0;
         handles.Cfg.SeriesFileNumber.Percent.T2 = 0;
         handles.Cfg.SeriesFileNumber.Percent.Dwi = 0;
         handles.Cfg.SeriesFileNumber.Percent.FunAll = {[0]};
+        handles.Cfg.SeriesFileNumber.Percent.FunSBRef = {[0]};
         handles.Cfg.SeriesFileNumber.Percent.FieldFun = {[0]};
         handles.Cfg.SeriesFileNumber.Percent.FieldDwi = {[0]};
         handles.Cfg.SxFunRawList = {'FunRaw'};
+        handles.Cfg.SxFunSBRefList = {'FunRaw SBRef'};
         handles.Cfg.SxFunRawFlag = 1;
         handles.Cfg.SxFieldFunRawList = {'FieldMap_Folder1'};
         handles.Cfg.SxFieldFunRawFlag = 1;
@@ -1474,18 +1518,38 @@ switch Flag
                 handles.Cfg.SxFunRawList{iSession} = ['S',num2str(iSession),'_FunRaw'];
             end
         end
+        handles.Cfg.SxFunSBRefList = cell(1,handles.Cfg.FunSessionNumber);
+        for iSession = 1:handles.Cfg.FunSessionNumber
+            if iSession == 1
+                handles.Cfg.SxFunSBRefList{iSession} = 'FunRaw SBRef';
+            else
+                handles.Cfg.SxFunSBRefList{iSession} = ['S',num2str(iSession),'_FunRaw SBRef'];
+            end
+        end
         handles.Cfg.SeriesName.FunAll = {};
+        handles.Cfg.SeriesName.FunSBRef = {};
         handles.Cfg.SeriesIndex.FunAll = ones(handles.Cfg.FunSessionNumber,1);
+        handles.Cfg.SeriesIndex.FunSBRef = ones(handles.Cfg.FunSessionNumber,1);
         handles.Cfg.SeriesFileNumber.List.FunAll = cell(1,handles.Cfg.FunSessionNumber);
         handles.Cfg.SeriesFileNumber.List.FunAll(:) = {[0]};
+        handles.Cfg.SeriesFileNumber.List.FunSBRef = cell(1,handles.Cfg.FunSessionNumber);
+        handles.Cfg.SeriesFileNumber.List.FunSBRef(:) = {[0]};
         handles.Cfg.SeriesFileNumber.LowLimitMode.FunAll = cell(1,handles.Cfg.FunSessionNumber);
         handles.Cfg.SeriesFileNumber.LowLimitMode.FunAll(:) = {[0]};
+        handles.Cfg.SeriesFileNumber.LowLimitMode.FunSBRef = cell(1,handles.Cfg.FunSessionNumber);
+        handles.Cfg.SeriesFileNumber.LowLimitMode.FunSBRef(:) = {[0]};
         handles.Cfg.SeriesFileNumber.LowThreshold.FunAll = cell(1,handles.Cfg.FunSessionNumber);
         handles.Cfg.SeriesFileNumber.LowThreshold.FunAll(:) = {[0]};
+        handles.Cfg.SeriesFileNumber.LowThreshold.FunSBRef = cell(1,handles.Cfg.FunSessionNumber);
+        handles.Cfg.SeriesFileNumber.LowThreshold.FunSBRef(:) = {[0]};
         handles.Cfg.SeriesFileNumber.Flag.FunAll = ones(handles.Cfg.FunSessionNumber,1);
+        handles.Cfg.SeriesFileNumber.Flag.FunSBRef = ones(handles.Cfg.FunSessionNumber,1);
         handles.Cfg.SeriesFileNumber.Percent.FunAll = cell(1,handles.Cfg.FunSessionNumber);
         handles.Cfg.SeriesFileNumber.Percent.FunAll(:) = {[0]};
+        handles.Cfg.SeriesFileNumber.Percent.FunSBRef = cell(1,handles.Cfg.FunSessionNumber);
+        handles.Cfg.SeriesFileNumber.Percent.FunSBRef(:) = {[0]};
         handles.Cfg.SxFunRawFlag = 1;
+        handles.Cfg.IsCurrentFunSBRef = 0;
         handles.Cfg.IsMultiEchoFunAll = zeros(handles.Cfg.FunSessionNumber,1);
     case 'FieldFun'
         handles.Cfg.SxFieldFunList = cell(1,handles.Cfg.FieldFunFolderNumber);
@@ -1718,8 +1782,14 @@ if handles.Cfg.IsOrganizeFun == 1
 else
     FunAllMiss = 0;
 end
+if handles.Cfg.IsOrganizeFun == 1 && isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+    FunSBRefMiss = cellfun(@isempty,handles.Cfg.SeriesName.FunSBRef);
+    FunSBRefMiss = sum(FunSBRefMiss);
+else
+    FunSBRefMiss = 0;
+end
 
-if AnatMiss || DwiMiss || FunAllMiss || FieldFunMiss || FieldDwiMiss || T2Miss
+if AnatMiss || DwiMiss || FunAllMiss || FunSBRefMiss || FieldFunMiss || FieldDwiMiss || T2Miss
     uiwait(msgbox({'Some sessions have not been determined, please select MR Series before run'},'Please select MR Series before run!'));
 end
 
@@ -1753,6 +1823,9 @@ if XnatFlag
         end
         if handles.Cfg.IsOrganizeFun
             SeriesFunAll = cellfun(@(Series) Series(Index(1)+1:end),handles.Cfg.SeriesName.FunAll,'UniformOutput',0);
+            if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                SeriesFunSBRef = cellfun(@(Series) Series(Index(1)+1:end),handles.Cfg.SeriesName.FunSBRef,'UniformOutput',0);
+            end
         end
     end
 else
@@ -1776,6 +1849,9 @@ else
         end
         if handles.Cfg.IsOrganizeFun
             SeriesFunAll = handles.Cfg.SeriesName.FunAll;
+            if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                SeriesFunSBRef = handles.Cfg.SeriesName.FunSBRef;
+            end
         end
     end
 end
@@ -1822,6 +1898,10 @@ if handles.Cfg.InputLayout == 1 % Participant first
             for iSession = 1:handles.Cfg.FunSessionNumber
                 FunAllList{iSession} = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesFunAll{iSession}]),SubString,'UniformOutput',0);
                 FunAllString{iSession}  = cellfun(@(SubSeries) {SubSeries(:).name}',FunAllList{iSession},'UniformOutput',0);
+                if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                    FunSBRefList{iSession} = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesFunSBRef{iSession}]),SubString,'UniformOutput',0);
+                    FunSBRefString{iSession}  = cellfun(@(SubSeries) {SubSeries(:).name}',FunSBRefList{iSession},'UniformOutput',0);
+                end
             end
         end
     end
@@ -1898,9 +1978,17 @@ else % Series first
             for iSession = 1:handles.Cfg.FunSessionNumber
                 FunAllListTemp = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesFunAll{iSession}]);
                 FunAllListTemp={FunAllListTemp(:).name}';
+                if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                    FunSBRefListTemp = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesFunSBRef{iSession}]);
+                    FunSBRefListTemp={FunSBRefListTemp(:).name}';
+                end
                 for iSub = 1:length(SubString)
                     Index = cellfun(@(Series) exist([handles.Cfg.WorkingDir,filesep,Series,filesep,SubString{iSub}],'dir'),FunAllListTemp);
                     FunAllString{iSession}{iSub,1} = FunAllListTemp(find(Index));
+                    if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                        Index = cellfun(@(Series) exist([handles.Cfg.WorkingDir,filesep,Series,filesep,SubString{iSub}],'dir'),FunSBRefListTemp);
+                        FunSBRefString{iSession}{iSub,1} = FunSBRefListTemp(find(Index));
+                    end
                 end
             end
         end
@@ -1991,6 +2079,17 @@ if ~handles.Cfg.AnatOnly
                 FunAllString{iSession}  = cat(2,FunAllString{iSession} {:})';
             end
             SubString_FunAll{iSession} = repmat(SubString,1,size(FunAllString{iSession},2));
+            if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                MaxColumn = max(cellfun('length', FunSBRefString{iSession} ));
+                MinColumn = min(cellfun('length', FunSBRefString{iSession} ));
+                if MaxColumn == 1 && MinColumn == 1
+                    FunSBRefString{iSession} = cellfun(@(Series) Series{1},FunSBRefString{iSession}, 'UniformOutput', false);
+                else
+                    FunSBRefString{iSession}  = cellfun(@(OneString) [OneString; repmat({'padding'},MaxColumn-length(OneString),1)], FunSBRefString{iSession} , 'UniformOutput', false);
+                    FunSBRefString{iSession}  = cat(2,FunSBRefString{iSession} {:})';
+                end
+                SubString_FunSBRef{iSession} = repmat(SubString,1,size(FunSBRefString{iSession},2));
+            end
         end
     end
 end
@@ -2185,6 +2284,23 @@ if handles.Cfg.InputLayout == 1 % Participant first
                             FunAllString{iSession},SubString_FunAll{iSession},'UniformOutput', false);
                     end
                 end
+                if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                    if handles.Cfg.SeriesFileNumber.LowLimitMode.FunSBRef{iSession}
+                        nFileFunSBRef = handles.Cfg.SeriesFileNumber.LowThreshold.FunSBRef{iSession};
+                        try
+                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) (length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileFunSBRef)>=0,FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
+                        catch
+                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) (length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileFunSBRef)>=0,FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
+                        end
+                    else
+                        nFileFunSBRef = handles.Cfg.SeriesFileNumber.List.FunSBRef{iSession}(handles.Cfg.SeriesFileNumber.Flag.FunSBRef(iSession));
+                        try
+                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileFunSBRef),FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
+                        catch
+                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ~(length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileFunSBRef),FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
+                        end
+                    end
+                end
             end
         end
     end
@@ -2317,8 +2433,8 @@ else % Series first
             end
         end
         if handles.Cfg.IsOrganizeFun
-            if handles.Cfg.SeriesFileNumber.LowLimitMode.FunAll{iSession} % Do not fix the number of dicom files, setting a lower threshold for the number. Bin Lu, 20220921.
-                for iSession = 1:handles.Cfg.FunSessionNumber
+            for iSession = 1:handles.Cfg.FunSessionNumber
+                if handles.Cfg.SeriesFileNumber.LowLimitMode.FunAll{iSession} % Do not fix the number of dicom files, setting a lower threshold for the number. Bin Lu, 20220921.
                     nFileFunAll = handles.Cfg.SeriesFileNumber.LowThreshold.FunAll{iSession};
                     try
                         FunAllStatus{iSession} = cellfun(@(Series,Sub) ...
@@ -2329,9 +2445,7 @@ else % Series first
                             (length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileFunAll)>=0,...
                             FunAllString{iSession},SubString_FunAll{iSession},'UniformOutput', false);
                     end
-                end
-            else
-                for iSession = 1:handles.Cfg.FunSessionNumber
+                else
                     nFileFunAll = handles.Cfg.SeriesFileNumber.List.FunAll{iSession}(handles.Cfg.SeriesFileNumber.Flag.FunAll(iSession));
                     try
                         FunAllStatus{iSession} = cellfun(@(Series,Sub) ...
@@ -2341,6 +2455,31 @@ else % Series first
                         FunAllStatus{iSession} = cellfun(@(Series,Sub) ...
                             ~(length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileFunAll),...
                             FunAllString{iSession},SubString_FunAll{iSession},'UniformOutput', false);
+                    end
+                end
+                if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                    if handles.Cfg.SeriesFileNumber.LowLimitMode.FunSBRef{iSession}
+                        nFileFunSBRef = handles.Cfg.SeriesFileNumber.LowThreshold.FunSBRef{iSession};
+                        try
+                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ...
+                                (length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileFunSBRef)>=0,...
+                                FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
+                        catch
+                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ...
+                                (length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileFunSBRef)>=0,...
+                                FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
+                        end
+                    else
+                        nFileFunSBRef = handles.Cfg.SeriesFileNumber.List.FunSBRef{iSession}(handles.Cfg.SeriesFileNumber.Flag.FunSBRef(iSession));
+                        try
+                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ...
+                                ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileFunSBRef),...
+                                FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
+                        catch
+                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ...
+                                ~(length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileFunSBRef),...
+                                FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
+                        end
                     end
                 end
             end
@@ -2373,6 +2512,10 @@ if ~handles.Cfg.AnatOnly
     if handles.Cfg.IsOrganizeFun
         FunAllInputDir = cell(handles.Cfg.FunSessionNumber,1);
         FunAllInputDir = cellfun(@(Session) cell(length(SubString),1),FunAllInputDir,'UniformOutput', false);
+        if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+            FunSBRefInputDir = cell(handles.Cfg.FunSessionNumber,1);
+            FunSBRefInputDir = cellfun(@(Session) cell(length(SubString),1),FunSBRefInputDir,'UniformOutput', false);
+        end
     end
 end
 
@@ -2916,6 +3059,30 @@ else % series first
 end
 
 
+%% Confirm BOLD SBRef input directories, if requested
+if handles.Cfg.AnatOnly == 0 && handles.Cfg.IsOrganizeFun && isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+    for iSub = 1:length(SubString)
+        for iSession = 1:handles.Cfg.FunSessionNumber
+            Index = find([FunSBRefStatus{iSession}{iSub,:}]);
+            if ~isempty(Index)
+                if length(Index) > 1
+                    SeriesList = FunSBRefString{iSession}(iSub,Index)';
+                    Selection = ManuallySelectSeries(handles.Cfg.SxFunSBRefList(iSession),SubString{iSub},SeriesList,'Template1');
+                    Index = Selection.Results(1)-1;
+                    SeriesNameTemp = SeriesList{Index};
+                else
+                    SeriesNameTemp = FunSBRefString{iSession}{iSub,Index(end)};
+                end
+                if handles.Cfg.InputLayout == 1
+                    FunSBRefInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesNameTemp];
+                else
+                    FunSBRefInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesNameTemp,filesep,SubString{iSub}];
+                end
+            end
+        end
+    end
+end
+
 %% Expand multi-echo functional series (per session)
 % For sessions marked as multi-echo, we first determine the echo series folder names
 % using ONE reference subject (DICOM header ProtocolName match + same file count), then we use
@@ -3225,6 +3392,26 @@ else % handles.Cfg.IsPseudoSeries == 0
 end
 
 
+%% Process BOLD SBRef pseudo/missing sessions, if requested
+if handles.Cfg.AnatOnly == 0 && handles.Cfg.IsOrganizeFun && isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+    handles.Cfg.FunSBRefPseudo = cell(handles.Cfg.FunSessionNumber,1);
+    for iSub = 1:length(SubString)
+        for iSession = 1:handles.Cfg.FunSessionNumber
+            if handles.Cfg.IsPseudoSeries
+                if ~isempty(FunSBRefInputDir{iSession}{iSub}) && ~strcmp(FunSBRefInputDir{iSession}{iSub}(end-11:end),'PseudoSeries') && isempty(handles.Cfg.FunSBRefPseudo{iSession})
+                    handles.Cfg.FunSBRefPseudo{iSession} = FunSBRefInputDir{iSession}{iSub};
+                elseif isempty(FunSBRefInputDir{iSession}{iSub}) || strcmp(FunSBRefInputDir{iSession}{iSub}(end-11:end),'PseudoSeries')
+                    FunSBRefInputDir{iSession}{iSub} = 'PseudoSeries';
+                end
+            else
+                if isempty(FunSBRefInputDir{iSession}{iSub}) || strcmp(FunSBRefInputDir{iSession}{iSub}(end-11:end),'PseudoSeries')
+                    SubStatus(iSub) = 0;
+                end
+            end
+        end
+    end
+end
+
 %% Copy and paste files 
 disp([newline,'Start to copy files to DPABI-format starting directory ...']);
 handles.Cfg.SubList = SubString(find(SubStatus));
@@ -3260,6 +3447,9 @@ if ~handles.Cfg.AnatOnly
                 handles.Cfg.InputList.FunAllME{iSession} = FunAllInputDirME{iSession}(find(SubStatus));
             else
                 handles.Cfg.InputList.FunAll{iSession} = FunAllInputDir{iSession}(find(SubStatus));
+            end
+            if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                handles.Cfg.InputList.FunSBRef{iSession} = FunSBRefInputDir{iSession}(find(SubStatus));
             end
         end
     end
@@ -3443,6 +3633,28 @@ for iSub = 1:length(handles.Cfg.SubList)
                         end
                     end
                 end
+                if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                    if iSession == 1
+                        SBRefBaseName = 'FunSBREFRaw';
+                    else
+                        SBRefBaseName = ['S',num2str(iSession),'_FunSBREFRaw'];
+                    end
+                    FunSBRefOutputDir = [handles.Cfg.OutputDir,filesep,SBRefBaseName,filesep,SubID];
+                    mkdir(FunSBRefOutputDir);
+                    try
+                        if ~strcmp(handles.Cfg.InputList.FunSBRef{iSession}{iSub},'PseudoSeries')
+                            copyfile(handles.Cfg.InputList.FunSBRef{iSession}{iSub},FunSBRefOutputDir);
+                        else
+                            copyfile(handles.Cfg.FunSBRefPseudo{iSession},FunSBRefOutputDir);
+                        end
+                    catch
+                        if ~strcmp(handles.Cfg.InputList.FunSBRef{iSession}{iSub},'PseudoSeries')
+                            dos(['for file in "',handles.Cfg.InputList.FunSBRef{iSession}{iSub},'"/*; do cp -- "$file" "',FunSBRefOutputDir,'" ; done']);
+                        else
+                            dos(['for file in "',handles.Cfg.FunSBRefPseudo{iSession},'"/*; do cp -- "$file" "',FunSBRefOutputDir,'" ; done']);
+                        end
+                    end
+                end
             end
         end
     end
@@ -3613,6 +3825,27 @@ if handles.Cfg.IsOrganizeFun
 end
 
 
+%Convert BOLD SBRef DICOM files to NIFTI images
+if handles.Cfg.IsOrganizeFun && isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+    for iSession=1:handles.Cfg.FunSessionNumber
+        if iSession == 1
+            Prefix = '';
+        else
+            Prefix = ['S',num2str(iSession),'_'];
+        end
+        for iSub=1:length(handles.Cfg.SubList)
+            OutputDir=[handles.Cfg.OutputDir,filesep,Prefix,'FunSBREFImg',filesep,SubjectID{iSub}];
+            mkdir(OutputDir);
+            DirDCM=dir([handles.Cfg.OutputDir,filesep,Prefix,'FunSBREFRaw',filesep,SubjectID{iSub},filesep,'*']);
+            InputFilename=[handles.Cfg.OutputDir,filesep,Prefix,'FunSBREFRaw',filesep,SubjectID{iSub},filesep,DirDCM(handles.Cfg.nFileOperator+1).name];
+            y_Call_dcm2nii(InputFilename, OutputDir, 'DefaultINI');
+            fprintf(['Converting ',Prefix,'FunSBREFImg: ',SubjectID{iSub},' OK']);
+        end
+        fprintf('\n');
+    end
+end
+
+
 function CheckDCM2NIIStatus(hObject, handles)
 % Check whether DCM2NII and re-allocating Fieldmaps are successful
 if handles.Cfg.IsChangeSubID
@@ -3755,6 +3988,14 @@ for iSub = 1:length(SubjectID)
                 handles.Cfg.DCM2NIIStatus.Fun{iSession}{iSub,1} = 'Failure';
                 Flag(iSub) = 1;
             end
+            if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                if ~isempty(dir([handles.Cfg.OutputDir,filesep,Prefix,'FunSBREFImg',filesep,SubjectID{iSub},filesep,'*.nii']))
+                    handles.Cfg.DCM2NIIStatus.FunSBRef{iSession}{iSub,1} = 'Success';
+                else
+                    handles.Cfg.DCM2NIIStatus.FunSBRef{iSession}{iSub,1} = 'Failure';
+                    Flag(iSub) = 1;
+                end
+            end
         end
     end
     
@@ -3815,6 +4056,9 @@ for iSub = 1:length(SubjectID)
                         Prefix = ['S',num2str(iSession),'_'];
                     end
                     rmdir([handles.Cfg.OutputDir,filesep,Prefix,'FunImg',filesep,SubjectID{iSub}],'s');
+                    if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                        rmdir([handles.Cfg.OutputDir,filesep,Prefix,'FunSBREFImg',filesep,SubjectID{iSub}],'s');
+                    end
                 end
             end
         end
@@ -3871,7 +4115,7 @@ if ~handles.Cfg.AnatOnly
                    if iSession ==1
                        Titles = [Titles,['FunRaw_Echo',num2str(iEcho)]];
                    else
-                       Titles = [Titles,['S_',num2str(iSession),'FunRaw_Echo',num2str(iEcho)]];
+                       Titles = [Titles,['S',num2str(iSession),'_FunRaw_Echo',num2str(iEcho)]];
                    end
                    Text = [Text,cellfun(@(x) x{iEcho}, handles.Cfg.InputList.FunAllME{iSession}, 'UniformOutput', false)];
                end
@@ -3879,9 +4123,17 @@ if ~handles.Cfg.AnatOnly
                 if iSession ==1
                     Titles = [Titles,['FunRaw']];
                 else
-                    Titles = [Titles,['S_',num2str(iSession),'_FunRaw']];
+                    Titles = [Titles,['S',num2str(iSession),'_FunRaw']];
                 end
                 Text = [Text,handles.Cfg.InputList.FunAll{iSession}];
+            end
+            if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                if iSession ==1
+                    Titles = [Titles,['FunSBREFRaw']];
+                else
+                    Titles = [Titles,['S',num2str(iSession),'_FunSBREFRaw']];
+                end
+                Text = [Text,handles.Cfg.InputList.FunSBRef{iSession}];
             end
         end
     end
@@ -3920,6 +4172,14 @@ if handles.Cfg.IsDCM2NII
                     Titles = [Titles,['DCM2NII S',num2str(iSession),'_FunRaw']];
                 end
                 Text = [Text,handles.Cfg.DCM2NIIStatus.Fun{iSession}];
+                if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+                    if iSession ==1
+                        Titles = [Titles,['DCM2NII FunSBREFRaw']];
+                    else
+                        Titles = [Titles,['DCM2NII S',num2str(iSession),'_FunSBREFRaw']];
+                    end
+                    Text = [Text,handles.Cfg.DCM2NIIStatus.FunSBRef{iSession}];
+                end
             end
         end
     end
@@ -4065,7 +4325,12 @@ function radiobuttonFunAllFixednFile_Callback(hObject, eventdata, handles)
 % hObject    handle to radiobuttonFunAllFixednFile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-handles.Cfg.SeriesFileNumber.LowLimitMode.FunAll{handles.Cfg.SxFunRawFlag} = ~get(handles.radiobuttonFunAllFixednFile,'Value');
+[SessionFlag, IsFunSBRef] = GetCurrentFunRawFlag(handles);
+if IsFunSBRef
+    handles.Cfg.SeriesFileNumber.LowLimitMode.FunSBRef{SessionFlag} = ~get(handles.radiobuttonFunAllFixednFile,'Value');
+else
+    handles.Cfg.SeriesFileNumber.LowLimitMode.FunAll{SessionFlag} = ~get(handles.radiobuttonFunAllFixednFile,'Value');
+end
 guidata(hObject,handles);
 UpdateDisplay(handles)
 % Hint: get(hObject,'Value') returns toggle state of radiobuttonFunAllFixednFile
@@ -4076,7 +4341,12 @@ function radiobuttonFunAllChangeablenFile_Callback(hObject, eventdata, handles)
 % hObject    handle to radiobuttonFunAllChangeablenFile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-handles.Cfg.SeriesFileNumber.LowLimitMode.FunAll{handles.Cfg.SxFunRawFlag} = get(handles.radiobuttonFunAllChangeablenFile,'Value');
+[SessionFlag, IsFunSBRef] = GetCurrentFunRawFlag(handles);
+if IsFunSBRef
+    handles.Cfg.SeriesFileNumber.LowLimitMode.FunSBRef{SessionFlag} = get(handles.radiobuttonFunAllChangeablenFile,'Value');
+else
+    handles.Cfg.SeriesFileNumber.LowLimitMode.FunAll{SessionFlag} = get(handles.radiobuttonFunAllChangeablenFile,'Value');
+end
 guidata(hObject,handles);
 UpdateDisplay(handles)
 % Hint: get(hObject,'Value') returns toggle state of radiobuttonFunAllChangeablenFile
@@ -4087,7 +4357,12 @@ function editFunAllnFile_Callback(hObject, eventdata, handles)
 % hObject    handle to editFunAllnFile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-handles.Cfg.SeriesFileNumber.LowThreshold.FunAll{handles.Cfg.SxFunRawFlag} = str2num(get(handles.editFunAllnFile,'String'));
+[SessionFlag, IsFunSBRef] = GetCurrentFunRawFlag(handles);
+if IsFunSBRef
+    handles.Cfg.SeriesFileNumber.LowThreshold.FunSBRef{SessionFlag} = str2num(get(handles.editFunAllnFile,'String'));
+else
+    handles.Cfg.SeriesFileNumber.LowThreshold.FunAll{SessionFlag} = str2num(get(handles.editFunAllnFile,'String'));
+end
 guidata(hObject,handles);
 % Hints: get(hObject,'String') returns contents of editFunAllnFile as text
 %        str2double(get(hObject,'String')) returns contents of editFunAllnFile as a double
@@ -4513,27 +4788,51 @@ if handles.Cfg.IsOrganizeFun
     set(handles.popupmenuSxFunRaw,'Enable','on');
     set(handles.popupmenuFunAll,'Enable','on');
     set(handles.editFunSessionNum,'Enable','on');
-    % Multi-echo checkbox (per session)
-    if isfield(handles,'checkboxFunAllMultiEcho')
-        set(handles.checkboxFunAllMultiEcho,'Enable','on');
-        if isfield(handles.Cfg,'IsMultiEchoFunAll') && length(handles.Cfg.IsMultiEchoFunAll) >= handles.Cfg.SxFunRawFlag
-            set(handles.checkboxFunAllMultiEcho,'Value',handles.Cfg.IsMultiEchoFunAll(handles.Cfg.SxFunRawFlag));
-        else
-            set(handles.checkboxFunAllMultiEcho,'Value',0);
+    if isfield(handles,'checkboxFunAllRef')
+        set(handles.checkboxFunAllRef,'Enable','on');
+        set(handles.checkboxFunAllRef,'Value',handles.Cfg.IsFunAllRef);
+    end
+    FunRawDisplayList = handles.Cfg.SxFunRawList;
+    PopupSxFunRawValue = handles.Cfg.SxFunRawFlag;
+    if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+        FunRawDisplayList = [handles.Cfg.SxFunRawList, handles.Cfg.SxFunSBRefList];
+        if isfield(handles.Cfg,'IsCurrentFunSBRef') && handles.Cfg.IsCurrentFunSBRef
+            PopupSxFunRawValue = handles.Cfg.SxFunRawFlag + handles.Cfg.FunSessionNumber;
         end
     end
-
-    %% need to deal with percentage problem !!!!!!!!
-    Percentage = handles.Cfg.SeriesFileNumber.Percent.FunAll{handles.Cfg.SxFunRawFlag};
-    DisplayString = cellfun(@(Num,Per) sprintf('%d (%.0f%%)',Num,Per*100),...
-        num2cell(handles.Cfg.SeriesFileNumber.List.FunAll{handles.Cfg.SxFunRawFlag}),num2cell(Percentage),'UniformOutput',false);
-    set(handles.popupmenuFunAllFileNumber,'String',DisplayString,...
-        'Value',handles.Cfg.SeriesFileNumber.Flag.FunAll(handles.Cfg.SxFunRawFlag));
-    set(handles.editFunAllnFile,'String',...
-        num2str(handles.Cfg.SeriesFileNumber.LowThreshold.FunAll{handles.Cfg.SxFunRawFlag}));
+    set(handles.popupmenuSxFunRaw,'String',FunRawDisplayList,'Value',PopupSxFunRawValue);
+    [SessionFlag, IsFunSBRef] = GetCurrentFunRawFlag(handles);
+    if isfield(handles,'checkboxFunAllMultiEcho')
+        if IsFunSBRef
+            set(handles.checkboxFunAllMultiEcho,'Enable','off');
+            set(handles.checkboxFunAllMultiEcho,'Value',0);
+        else
+            set(handles.checkboxFunAllMultiEcho,'Enable','on');
+            if isfield(handles.Cfg,'IsMultiEchoFunAll') && length(handles.Cfg.IsMultiEchoFunAll) >= SessionFlag
+                set(handles.checkboxFunAllMultiEcho,'Value',handles.Cfg.IsMultiEchoFunAll(SessionFlag));
+            else
+                set(handles.checkboxFunAllMultiEcho,'Value',0);
+            end
+        end
+    end
+    if IsFunSBRef
+        Percentage = handles.Cfg.SeriesFileNumber.Percent.FunSBRef{SessionFlag};
+        DisplayString = cellfun(@(Num,Per) sprintf('%d (%.0f%%)',Num,Per*100),num2cell(handles.Cfg.SeriesFileNumber.List.FunSBRef{SessionFlag}),num2cell(Percentage),'UniformOutput',false);
+        set(handles.popupmenuFunAllFileNumber,'String',DisplayString,'Value',handles.Cfg.SeriesFileNumber.Flag.FunSBRef(SessionFlag));
+        set(handles.editFunAllnFile,'String',num2str(handles.Cfg.SeriesFileNumber.LowThreshold.FunSBRef{SessionFlag}));
+        set(handles.popupmenuFunAll,'String',handles.Cfg.Demo.SeriesNames,'Value',handles.Cfg.SeriesIndex.FunSBRef(SessionFlag));
+        LowLimitMode = handles.Cfg.SeriesFileNumber.LowLimitMode.FunSBRef{SessionFlag};
+    else
+        Percentage = handles.Cfg.SeriesFileNumber.Percent.FunAll{SessionFlag};
+        DisplayString = cellfun(@(Num,Per) sprintf('%d (%.0f%%)',Num,Per*100),num2cell(handles.Cfg.SeriesFileNumber.List.FunAll{SessionFlag}),num2cell(Percentage),'UniformOutput',false);
+        set(handles.popupmenuFunAllFileNumber,'String',DisplayString,'Value',handles.Cfg.SeriesFileNumber.Flag.FunAll(SessionFlag));
+        set(handles.editFunAllnFile,'String',num2str(handles.Cfg.SeriesFileNumber.LowThreshold.FunAll{SessionFlag}));
+        set(handles.popupmenuFunAll,'String',handles.Cfg.Demo.SeriesNames,'Value',handles.Cfg.SeriesIndex.FunAll(SessionFlag));
+        LowLimitMode = handles.Cfg.SeriesFileNumber.LowLimitMode.FunAll{SessionFlag};
+    end
     set(handles.radiobuttonFunAllFixednFile,'Enable','on');
     set(handles.radiobuttonFunAllChangeablenFile,'Enable','on');
-    if handles.Cfg.SeriesFileNumber.LowLimitMode.FunAll{handles.Cfg.SxFunRawFlag} ==0
+    if LowLimitMode ==0
         set(handles.popupmenuFunAllFileNumber,'Enable','on');
         set(handles.radiobuttonFunAllFixednFile,'Value',1);
         set(handles.radiobuttonFunAllChangeablenFile,'Value',0);
@@ -4551,6 +4850,10 @@ if handles.Cfg.IsOrganizeFun
 else
     set(handles.popupmenuSxFunRaw,'Enable','off');
     set(handles.popupmenuFunAll,'Enable','off');
+    if isfield(handles,'checkboxFunAllRef')
+        set(handles.checkboxFunAllRef,'Enable','off');
+        set(handles.checkboxFunAllRef,'Value',0);
+    end
     if isfield(handles,'checkboxFunAllMultiEcho')
         set(handles.checkboxFunAllMultiEcho,'Enable','off');
         set(handles.checkboxFunAllMultiEcho,'Value',0);
@@ -4563,10 +4866,8 @@ else
     set(handles.textFilesFunAll,'Enable','off');
     set(handles.radiobuttonFunAllFixednFile,'Enable','off');
     set(handles.radiobuttonFunAllChangeablenFile,'Enable','off');
+    set(handles.popupmenuSxFunRaw,'String',handles.Cfg.SxFunRawList,'Value',handles.Cfg.SxFunRawFlag);
 end
-set(handles.popupmenuSxFunRaw,'String',handles.Cfg.SxFunRawList,'Value',handles.Cfg.SxFunRawFlag);
-set(handles.popupmenuFunAll,'String',handles.Cfg.Demo.SeriesNames,'Value',handles.Cfg.SeriesIndex.FunAll(handles.Cfg.SxFunRawFlag));
-
 
 % FieldMap - BOLD
 if handles.Cfg.IsOrganizeFieldFun  
@@ -4935,6 +5236,71 @@ UpdateDisplay(handles);
 
 
 
+% --- Executes on button press in checkboxUIH5T.
+function checkboxUIH5T_Callback(hObject, eventdata, handles)
+% hObject    handle to checkboxUIH5T (see GCBO)
+% UIH5T style T1: two series (eT1W and TI2) selected via popupmenuSxT1Plus and popupmenuT1.
+handles.Cfg.IsUIH5T = get(handles.checkboxUIH5T,'Value');
+% Initialize per-option cfg if missing
+if ~isfield(handles.Cfg,'SxT1PlusList') || isempty(handles.Cfg.SxT1PlusList)
+    handles.Cfg.SxT1PlusList = {'eT1W','TI2'};
+end
+nOpt = numel(handles.Cfg.SxT1PlusList);
+if ~isfield(handles.Cfg,'SxT1PlusFlag') || handles.Cfg.SxT1PlusFlag < 1 || handles.Cfg.SxT1PlusFlag > nOpt
+    handles.Cfg.SxT1PlusFlag = 1;
+end
+if ~isfield(handles.Cfg.SeriesName,'T1Plus') || numel(handles.Cfg.SeriesName.T1Plus) ~= nOpt
+    handles.Cfg.SeriesName.T1Plus = cell(nOpt,1);
+end
+if ~isfield(handles.Cfg.SeriesIndex,'T1Plus') || numel(handles.Cfg.SeriesIndex.T1Plus) ~= nOpt
+    handles.Cfg.SeriesIndex.T1Plus = ones(nOpt,1);
+end
+if ~isfield(handles.Cfg.SeriesFileNumber,'List') || ~isfield(handles.Cfg.SeriesFileNumber.List,'T1Plus') || numel(handles.Cfg.SeriesFileNumber.List.T1Plus) ~= nOpt
+    handles.Cfg.SeriesFileNumber.List.T1Plus = cell(1,nOpt); handles.Cfg.SeriesFileNumber.List.T1Plus(:) = {[0]};
+    handles.Cfg.SeriesFileNumber.Flag.T1Plus = ones(nOpt,1);
+    handles.Cfg.SeriesFileNumber.Percent.T1Plus = cell(1,nOpt); handles.Cfg.SeriesFileNumber.Percent.T1Plus(:) = {[0]};
+    handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus = cell(1,nOpt); handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus(:) = {[0]};
+    handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus = cell(1,nOpt); handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus(:) = {[0]};
+end
+
+UpdateDisplay(handles);
+guidata(hObject,handles);
+
+
+function popupmenuSxT1Plus_Callback(hObject, eventdata, handles)
+% hObject    handle to popupmenuSxT1Plus (see GCBO)
+% Switch between UIH5T T1 options (eT1W / TI2) to configure series selection and file-number criteria.
+handles.Cfg.SxT1PlusFlag = get(handles.popupmenuSxT1Plus,'Value');
+UpdateDisplay(handles);
+guidata(hObject,handles);
+
+
+function popupmenuSxT1Plus_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to popupmenuSxT1Plus (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in checkboxFunAllRef.
+function checkboxFunAllRef_Callback(hObject, eventdata, handles)
+% hObject    handle to checkboxFunAllRef (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+handles.Cfg.IsFunAllRef = get(handles.checkboxFunAllRef,'Value');
+if ~handles.Cfg.IsFunAllRef
+    handles.Cfg.IsCurrentFunSBRef = 0;
+end
+guidata(hObject,handles);
+UpdateDisplay(handles)
+% Hint: get(hObject,'Value') returns toggle state of checkboxFunAllRef
+
+
 
 function handles = SetDCM2NII(hObject, handles)
 % SetDCM2NII  Unify logic of:
@@ -5119,52 +5485,21 @@ IsOK = 1;
 Msg = sprintf('Detected %d echoes (ProtocolName match + same subject-level file count).', numel(EchoDirs));
 
 
-% --- Executes on button press in checkboxUIH5T.
-function checkboxUIH5T_Callback(hObject, eventdata, handles)
-% hObject    handle to checkboxUIH5T (see GCBO)
-% UIH5T style T1: two series (eT1W and TI2) selected via popupmenuSxT1Plus and popupmenuT1.
-handles.Cfg.IsUIH5T = get(handles.checkboxUIH5T,'Value');
-% Initialize per-option cfg if missing
-if ~isfield(handles.Cfg,'SxT1PlusList') || isempty(handles.Cfg.SxT1PlusList)
-    handles.Cfg.SxT1PlusList = {'eT1W','TI2'};
+function [SessionFlag, IsFunSBRef] = GetCurrentFunRawFlag(handles)
+% GetCurrentFunRawFlag  Decode popupmenuSxFunRaw into session index and whether it points to SBRef.
+if isfield(handles.Cfg,'IsCurrentFunSBRef') && handles.Cfg.IsCurrentFunSBRef
+    IsFunSBRef = 1;
+else
+    IsFunSBRef = 0;
 end
-nOpt = numel(handles.Cfg.SxT1PlusList);
-if ~isfield(handles.Cfg,'SxT1PlusFlag') || handles.Cfg.SxT1PlusFlag < 1 || handles.Cfg.SxT1PlusFlag > nOpt
-    handles.Cfg.SxT1PlusFlag = 1;
-end
-if ~isfield(handles.Cfg.SeriesName,'T1Plus') || numel(handles.Cfg.SeriesName.T1Plus) ~= nOpt
-    handles.Cfg.SeriesName.T1Plus = cell(nOpt,1);
-end
-if ~isfield(handles.Cfg.SeriesIndex,'T1Plus') || numel(handles.Cfg.SeriesIndex.T1Plus) ~= nOpt
-    handles.Cfg.SeriesIndex.T1Plus = ones(nOpt,1);
-end
-if ~isfield(handles.Cfg.SeriesFileNumber,'List') || ~isfield(handles.Cfg.SeriesFileNumber.List,'T1Plus') || numel(handles.Cfg.SeriesFileNumber.List.T1Plus) ~= nOpt
-    handles.Cfg.SeriesFileNumber.List.T1Plus = cell(1,nOpt); handles.Cfg.SeriesFileNumber.List.T1Plus(:) = {[0]};
-    handles.Cfg.SeriesFileNumber.Flag.T1Plus = ones(nOpt,1);
-    handles.Cfg.SeriesFileNumber.Percent.T1Plus = cell(1,nOpt); handles.Cfg.SeriesFileNumber.Percent.T1Plus(:) = {[0]};
-    handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus = cell(1,nOpt); handles.Cfg.SeriesFileNumber.LowLimitMode.T1Plus(:) = {[0]};
-    handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus = cell(1,nOpt); handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus(:) = {[0]};
-end
-
-UpdateDisplay(handles);
-guidata(hObject,handles);
-
-
-function popupmenuSxT1Plus_Callback(hObject, eventdata, handles)
-% hObject    handle to popupmenuSxT1Plus (see GCBO)
-% Switch between UIH5T T1 options (eT1W / TI2) to configure series selection and file-number criteria.
-handles.Cfg.SxT1PlusFlag = get(handles.popupmenuSxT1Plus,'Value');
-UpdateDisplay(handles);
-guidata(hObject,handles);
-
-
-function popupmenuSxT1Plus_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to popupmenuSxT1Plus (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: popupmenu controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+SessionFlag = handles.Cfg.SxFunRawFlag;
+if isfield(handles,'popupmenuSxFunRaw') && ishandle(handles.popupmenuSxFunRaw)
+    RawFlag = get(handles.popupmenuSxFunRaw,'Value');
+    if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef && RawFlag > handles.Cfg.FunSessionNumber
+        SessionFlag = RawFlag - handles.Cfg.FunSessionNumber;
+        IsFunSBRef = 1;
+    else
+        SessionFlag = RawFlag;
+        IsFunSBRef = 0;
+    end
 end
