@@ -889,8 +889,11 @@ if handles.Cfg.IsOrganizeFieldFun && ~strcmp(handles.Cfg.OutLayout.FieldFun.Form
                     JsonDir = dir([handles.Cfg.OutputDir,filesep,'FunFieldMap',filesep,'PhaseDiff',filesep,Cfg.SubjectID{iSub},filesep,'*.json*']); %% dcm2niix records both TE1 and TE2 in the json file of PhaseDiff images
                     JsonData = fileread([JsonDir(1).folder,filesep,JsonDir(1).name]);
                     JsonStruct = jsondecode(JsonData);
-                    Cfg.FieldMap.TE1 = JsonStruct.EchoTime1;
-                    Cfg.FieldMap.TE2 = JsonStruct.EchoTime2;
+                    try
+                        Cfg.FieldMap.TE1 = JsonStruct.EchoTime1;
+                        Cfg.FieldMap.TE2 = JsonStruct.EchoTime2;
+                    catch
+                    end
                 end
             end
         case 'Phase12'
@@ -1219,15 +1222,11 @@ if handles.Cfg.InputLayout == 1
         handles.Cfg.Demo.SeriesNames = {'Series not found!'};
         return
     end
-    SeriesStruct=dir([handles.Cfg.WorkingDir,filesep,Name]);
+    SeriesStruct=GetValidDirStruct(GetSubjectSeriesBaseDir(handles.Cfg.WorkingDir,Name));
     
 else
-    SeriesStruct=dir(handles.Cfg.WorkingDir);
+    SeriesStruct=GetValidDirStruct(handles.Cfg.WorkingDir);
 end
-Index=cellfun(...
-    @(IsDir, NotDot) IsDir && (~strcmpi(NotDot, '.') && ~strcmpi(NotDot, '..') && ~strcmpi(NotDot, '.DS_Store')), ...
-    {SeriesStruct.isdir}, {SeriesStruct.name});
-SeriesStruct=SeriesStruct(Index);
 SeriesString={SeriesStruct(:).name}';
 SeriesString=['Please select: ...';SeriesString]; % Add a prompt in case of user skipping selection!
 handles.Cfg.Demo.SeriesNames = SeriesString;
@@ -1256,17 +1255,12 @@ function [nFiles,Percentage] = CheckFileNumber(hObject, handles, SeriesIndex)
 %% Check the number of files for the selected MR series, for further avoiding include series not intact
 % SeriesIndex - The index of series in handles.Cfg.Demo.SeriesNames 
 SeriesName = handles.Cfg.Demo.SeriesNames{SeriesIndex};
-JavaFlag = 1;
 if isempty(SeriesName) || strcmp(SeriesName,handles.Cfg.Demo.SeriesNamesDefault)
     nFiles = [0];
     return
 else
     % For data from DPABI_DicomSorter, the index should be removed here to match more series
-    Index = strfind(SeriesName,'_');
-    %     if (~isempty(Index) && ~isnan(str2double(SeriesName(1:Index(1)-1))) && Index(1) == 5) || ... % Is so, the working dir was derived from DPABI_DicomSorter, series number should be removed.
-    if ~isempty(Index) && ~isnan(str2double(SeriesName(1:Index(1)-1))) % Revised 20210511, for output dir of xnat-like system
-        SeriesName = SeriesName(Index(1)+1:end);
-    end
+    SeriesName = RemoveSeriesNumberPrefix(SeriesName);
     if handles.Cfg.InputLayout==1 % Participant first
         SubList = dir(handles.Cfg.WorkingDir);
         Index=cellfun(...
@@ -1274,20 +1268,14 @@ else
             {SubList.isdir}, {SubList.name});
         SubList=SubList(Index);
         SubString={SubList(:).name}';
-        SeriesList = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesName]),SubString,'UniformOutput',0);
+        SeriesList = cellfun(@(Sub) FindMatchingSeriesDirs(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,SeriesName),SubString,'UniformOutput',0);
         SeriesString = cellfun(@(Series) {Series(:).name},SeriesList,'UniformOutput',0); %nSub*1 cell, mSeries in each cell
         % SeriesString = vertcat(SeriesString{:});  % Cannot deal with cell with different columns. 
         MaxColumn = max(cellfun('length', SeriesString));  % get the number of columns of the widest cell
         SeriesString = cellfun(@(OneSeriesString) [OneSeriesString, repmat({'padding'},1,MaxColumn-length(OneSeriesString))], SeriesString, 'UniformOutput', false); % pad each cell.
         SeriesString = vertcat(SeriesString{:}); % Thanks to Guillaume, convert to nSub*mSeries cell;
         SubString = repmat(SubString,1,size(SeriesString,2));
-        try % Revised 20210511, use Java function to increase speed.
-            nFileList = cellfun(@(Sub,Series) length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles),SubString,SeriesString,'UniformOutput',0);
-        catch
-            disp('Checking number of files for series, might be a little bit slow...')
-            JavaFlag = 0;
-            nFileList = cellfun(@(Sub,Series) length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series])),SubString,SeriesString,'UniformOutput',0);
-        end
+        nFileList = cellfun(@(Sub,Series) CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series),SubString,SeriesString,'UniformOutput',0);
     else % Series first
         % There are probably more than one series share same name, like DTI or repeated scanning of resting state
         SeriesList = dir([handles.Cfg.WorkingDir]);
@@ -1301,16 +1289,15 @@ else
         SubString = cellfun(@(OneSubString) [OneSubString, repmat({'padding'},1,MaxColumn-length(OneSubString))], SubString, 'UniformOutput', false); % pad each cell.
         SubString = vertcat(SubString{:}); % Thanks to Guillaume, convert to nSub*mSeries cell;
         SeriesString = repmat(SeriesString,1,size(SubString,2));
-        try % Revised 20210511, use Java function to increase speed.
-            nFileList = cellfun(@(Sub,Series) length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles),SubString,SeriesString,'UniformOutput',0);
-        catch
-            disp('Checking number of files for series, might be a little bit slow...')
-            JavaFlag = 0;
-            nFileList = cellfun(@(Sub,Series) length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub])),SubString,SeriesString,'UniformOutput',0);
-        end
+        nFileList = cellfun(@(Sub,Series) CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series),SubString,SeriesString,'UniformOutput',0);
     end    
     nFileUnique = unique([nFileList{:}]);
     nFileUnique(find(nFileUnique==0)) = [];
+    if isempty(nFileUnique)
+        nFiles = [0];
+        Percentage = [0];
+        return;
+    end
     % Added 20210722, add percentage info to reduce wrong selections
     SeriesTotalNumber = length(find([nFileList{:}]));
     for iNum = 1:length(nFileUnique)
@@ -1318,11 +1305,7 @@ else
     end
     [Percentage,Index] = sort(Percentage,'descend');
     nFileUnique = nFileUnique(Index);
-    if JavaFlag == 0
-        nFiles = (nFileUnique-handles.Cfg.nFileOperator)';
-    else
-        nFiles = nFileUnique';
-    end
+    nFiles = nFileUnique';
 end
 
 
@@ -1609,12 +1592,8 @@ if handles.Cfg.IsOrganizeFun && handles.Cfg.FunSessionNumber >1
         end
     end
     
-    % For data from DPABI_DicomSorter, the index should be removed here to match more series
-    Index = strfind(Series{1},'_');
-    % if ~isempty(Index) && ~isnan(str2double(Series{1}(1:Index(1)-1))) && Index(1) == 5 %% Is so, the working dir was derived from DPABI_DicomSorter, series number should be removed.
-    if ~isempty(Index) && ~isnan(str2double(Series{1}(1:Index(1)-1))) %% For xnat-like output series name. Bin Lu. 20221212.
-        Series = cellfun(@(Series) Series(Index(1)+1:end),Series,'UniformOutput',0);
-    end
+    % For data from DPABI_DicomSorter and XNAT, the numeric series prefix should be ignored.
+    Series = RemoveSeriesNumberPrefix(Series);
     
     Sessions = {'FunRaw'};
     for iSession = 2:handles.Cfg.FunSessionNumber
@@ -1656,12 +1635,8 @@ if handles.Cfg.IsOrganizeFieldDwi && handles.Cfg.FieldDwiFolderNumber >1
         end
     end
     
-    % For data from DPABI_DicomSorter, the index should be removed here to match more series
-    Index = strfind(Series{1},'_');
-    % if ~isempty(Index) && ~isnan(str2double(Series{1}(1:Index(1)-1))) && Index(1) == 5 %% Is so, the working dir was derived from DPABI_DicomSorter, series number should be removed.
-    if ~isempty(Index) && ~isnan(str2double(Series{1}(1:Index(1)-1))) %% For xnat-like output series name. Bin Lu. 20221212.
-        Series = cellfun(@(Series) Series(Index(1)+1:end),Series,'UniformOutput',0);
-    end
+    % For data from DPABI_DicomSorter and XNAT, the numeric series prefix should be ignored.
+    Series = RemoveSeriesNumberPrefix(Series);
     
     Sessions = cell(1,handles.Cfg.FieldDwiFolderNumber);
     for iSession = 1:handles.Cfg.FieldDwiFolderNumber
@@ -1702,12 +1677,8 @@ if handles.Cfg.IsOrganizeFieldFun && handles.Cfg.FieldFunFolderNumber >1
             nDicomFile(iSession)= handles.Cfg.SeriesFileNumber.List.FieldFun{iSession}(handles.Cfg.SeriesFileNumber.Flag.FieldFun(iSession));
         end
     end
-    % For data from DPABI_DicomSorter, the index should be removed here to match more series
-    Index = strfind(Series{1},'_');
-    % if ~isempty(Index) && ~isnan(str2double(Series{1}(1:Index(1)-1))) && Index(1) == 5 %% Is so, the working dir was derived from DPABI_DicomSorter, series number should be removed.
-    if ~isempty(Index) && ~isnan(str2double(Series{1}(1:Index(1)-1))) %% For xnat-like output series name. Bin Lu. 20221212.
-        Series = cellfun(@(Series) Series(Index(1)+1:end),Series,'UniformOutput',0);
-    end
+    % For data from DPABI_DicomSorter and XNAT, the numeric series prefix should be ignored.
+    Series = RemoveSeriesNumberPrefix(Series);
     
     Sessions = cell(1,handles.Cfg.FieldFunFolderNumber);
     for iSession = 1:handles.Cfg.FieldFunFolderNumber
@@ -1793,65 +1764,29 @@ if AnatMiss || DwiMiss || FunAllMiss || FunSBRefMiss || FieldFunMiss || FieldDwi
     uiwait(msgbox({'Some sessions have not been determined, please select MR Series before run'},'Please select MR Series before run!'));
 end
 
-%% For data from DPABI_DicomSorter and xnat-like system, the index should be removed here to match more series
-%% Is so, the working dir was derived from DPABI_DicomSorter or xnat-like system, series number should be removed.
+%% For data from DPABI_DicomSorter and XNAT, the numeric series prefix should be ignored when matching series folders.
 if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
-    Index = strfind(handles.Cfg.SeriesName.T1Plus{1},'_'); %eT1W
-    XnatFlag = ~isnan(str2double(handles.Cfg.SeriesName.T1Plus{1}(1:Index(1)-1)));
+    SeriesT1Plus = RemoveSeriesNumberPrefix(handles.Cfg.SeriesName.T1Plus);
 else
-    Index = strfind(handles.Cfg.SeriesName.T1,'_');
-    XnatFlag = ~isnan(str2double(handles.Cfg.SeriesName.T1(1:Index(1)-1)));
+    SeriesT1 = RemoveSeriesNumberPrefix(handles.Cfg.SeriesName.T1);
 end
-if XnatFlag
-    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
-        SeriesT1Plus = cellfun(@(Series) Series(Index(1)+1:end),handles.Cfg.SeriesName.T1Plus,'UniformOutput',0);
-    else
-        SeriesT1 = handles.Cfg.SeriesName.T1(Index(1)+1:end);
+if ~handles.Cfg.AnatOnly
+    if handles.Cfg.IsOrganizeT2
+        SeriesT2 = RemoveSeriesNumberPrefix(handles.Cfg.SeriesName.T2);
     end
-    if ~handles.Cfg.AnatOnly
-        if handles.Cfg.IsOrganizeT2
-            SeriesT2 = handles.Cfg.SeriesName.T2(Index(1)+1:end);
-        end
-        if handles.Cfg.IsOrganizeDwi
-            SeriesDwi = handles.Cfg.SeriesName.Dwi(Index(1)+1:end);
-        end
-        if handles.Cfg.IsOrganizeFieldFun
-            SeriesFieldFun = cellfun(@(Series) Series(Index(1)+1:end),handles.Cfg.SeriesName.FieldFun,'UniformOutput',0);
-        end
-        if handles.Cfg.IsOrganizeFieldDwi
-            SeriesFieldDwi = cellfun(@(Series) Series(Index(1)+1:end),handles.Cfg.SeriesName.FieldDwi,'UniformOutput',0);
-        end
-        if handles.Cfg.IsOrganizeFun
-            SeriesFunAll = cellfun(@(Series) Series(Index(1)+1:end),handles.Cfg.SeriesName.FunAll,'UniformOutput',0);
-            if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
-                SeriesFunSBRef = cellfun(@(Series) Series(Index(1)+1:end),handles.Cfg.SeriesName.FunSBRef,'UniformOutput',0);
-            end
-        end
+    if handles.Cfg.IsOrganizeDwi
+        SeriesDwi = RemoveSeriesNumberPrefix(handles.Cfg.SeriesName.Dwi);
     end
-else
-    if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
-        SeriesT1Plus = handles.Cfg.SeriesName.T1Plus;
-    else
-        SeriesT1 = handles.Cfg.SeriesName.T1;
+    if handles.Cfg.IsOrganizeFieldFun
+        SeriesFieldFun = RemoveSeriesNumberPrefix(handles.Cfg.SeriesName.FieldFun);
     end
-    if ~handles.Cfg.AnatOnly
-        if handles.Cfg.IsOrganizeT2
-            SeriesT2 = handles.Cfg.SeriesName.T2;
-        end
-        if handles.Cfg.IsOrganizeDwi
-            SeriesDwi = handles.Cfg.SeriesName.Dwi;
-        end
-        if handles.Cfg.IsOrganizeFieldFun
-            SeriesFieldFun = handles.Cfg.SeriesName.FieldFun;
-        end
-        if handles.Cfg.IsOrganizeFieldDwi
-            SeriesFieldDwi = handles.Cfg.SeriesName.FieldDwi;
-        end
-        if handles.Cfg.IsOrganizeFun
-            SeriesFunAll = handles.Cfg.SeriesName.FunAll;
-            if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
-                SeriesFunSBRef = handles.Cfg.SeriesName.FunSBRef;
-            end
+    if handles.Cfg.IsOrganizeFieldDwi
+        SeriesFieldDwi = RemoveSeriesNumberPrefix(handles.Cfg.SeriesName.FieldDwi);
+    end
+    if handles.Cfg.IsOrganizeFun
+        SeriesFunAll = RemoveSeriesNumberPrefix(handles.Cfg.SeriesName.FunAll);
+        if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
+            SeriesFunSBRef = RemoveSeriesNumberPrefix(handles.Cfg.SeriesName.FunSBRef);
         end
     end
 end
@@ -1866,40 +1801,40 @@ if handles.Cfg.InputLayout == 1 % Participant first
     SubString={SubList(:).name}';
     if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
         for iSession = 1:length(handles.Cfg.SxT1PlusList)
-            T1PlusList{iSession} = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesT1Plus{iSession}]),SubString,'UniformOutput',0);
+            T1PlusList{iSession} = cellfun(@(Sub) FindMatchingSeriesDirs(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,SeriesT1Plus{iSession}),SubString,'UniformOutput',0);
             T1PlusString{iSession}  = cellfun(@(SubSeries) {SubSeries(:).name}',T1PlusList{iSession},'UniformOutput',0);
         end
     else
-        T1List = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesT1]),SubString,'UniformOutput',0);
+        T1List = cellfun(@(Sub) FindMatchingSeriesDirs(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,SeriesT1),SubString,'UniformOutput',0);
         T1String = cellfun(@(SubSeries) {SubSeries(:).name}',T1List,'UniformOutput',0);
     end
     if ~handles.Cfg.AnatOnly
         if handles.Cfg.IsOrganizeT2
-            T2List = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesT2]),SubString,'UniformOutput',0);
+            T2List = cellfun(@(Sub) FindMatchingSeriesDirs(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,SeriesT2),SubString,'UniformOutput',0);
             T2String = cellfun(@(SubSeries) {SubSeries(:).name}',T2List,'UniformOutput',0);
         end
         if handles.Cfg.IsOrganizeDwi
-            DwiList = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesDwi]),SubString,'UniformOutput',0);
+            DwiList = cellfun(@(Sub) FindMatchingSeriesDirs(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,SeriesDwi),SubString,'UniformOutput',0);
             DwiString = cellfun(@(SubSeries) {SubSeries(:).name}',DwiList,'UniformOutput',0);
         end
         if handles.Cfg.IsOrganizeFieldFun
             for iSession = 1:handles.Cfg.FieldFunFolderNumber
-                FieldFunList{iSession} = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesFieldFun{iSession}]),SubString,'UniformOutput',0);
+                FieldFunList{iSession} = cellfun(@(Sub) FindMatchingSeriesDirs(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,SeriesFieldFun{iSession}),SubString,'UniformOutput',0);
                 FieldFunString{iSession}  = cellfun(@(SubSeries) {SubSeries(:).name}',FieldFunList{iSession},'UniformOutput',0);
             end
         end
         if handles.Cfg.IsOrganizeFieldDwi
             for iSession = 1:handles.Cfg.FieldDwiFolderNumber
-                FieldDwiList{iSession} = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesFieldDwi{iSession}]),SubString,'UniformOutput',0);
+                FieldDwiList{iSession} = cellfun(@(Sub) FindMatchingSeriesDirs(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,SeriesFieldDwi{iSession}),SubString,'UniformOutput',0);
                 FieldDwiString{iSession}  = cellfun(@(SubSeries) {SubSeries(:).name}',FieldDwiList{iSession},'UniformOutput',0);
             end
         end
         if handles.Cfg.IsOrganizeFun
             for iSession = 1:handles.Cfg.FunSessionNumber
-                FunAllList{iSession} = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesFunAll{iSession}]),SubString,'UniformOutput',0);
+                FunAllList{iSession} = cellfun(@(Sub) FindMatchingSeriesDirs(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,SeriesFunAll{iSession}),SubString,'UniformOutput',0);
                 FunAllString{iSession}  = cellfun(@(SubSeries) {SubSeries(:).name}',FunAllList{iSession},'UniformOutput',0);
                 if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
-                    FunSBRefList{iSession} = cellfun(@(Sub) dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,'*',SeriesFunSBRef{iSession}]),SubString,'UniformOutput',0);
+                    FunSBRefList{iSession} = cellfun(@(Sub) FindMatchingSeriesDirs(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,SeriesFunSBRef{iSession}),SubString,'UniformOutput',0);
                     FunSBRefString{iSession}  = cellfun(@(SubSeries) {SubSeries(:).name}',FunSBRefList{iSession},'UniformOutput',0);
                 end
             end
@@ -1925,7 +1860,7 @@ else % Series first
             T1PlusListTemp = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesT1Plus{iSession}]);
             T1PlusListTemp={T1PlusListTemp(:).name}';
             for iSub = 1:length(SubString)
-                Index = cellfun(@(Series) exist([handles.Cfg.WorkingDir,filesep,Series,filesep,SubString{iSub}],'dir'),T1PlusListTemp);
+                Index = cellfun(@(Series) exist(GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},Series),'dir'),T1PlusListTemp);
                 T1PlusString{iSession}{iSub,1} = T1PlusListTemp(find(Index));
             end
         end
@@ -1933,7 +1868,7 @@ else % Series first
         T1ListTemp = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesT1]);
         T1ListTemp={T1ListTemp(:).name}';
         for iSub = 1:length(SubString)
-            Index = cellfun(@(Series) exist([handles.Cfg.WorkingDir,filesep,Series,filesep,SubString{iSub}],'dir'),T1ListTemp);
+            Index = cellfun(@(Series) exist(GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},Series),'dir'),T1ListTemp);
             T1String{iSub,1} = T1ListTemp(find(Index));
         end
     end
@@ -1942,7 +1877,7 @@ else % Series first
             T2ListTemp = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesT2]);
             T2ListTemp={T2ListTemp(:).name}';
             for iSub = 1:length(SubString)
-                Index = cellfun(@(Series) exist([handles.Cfg.WorkingDir,filesep,Series,filesep,SubString{iSub}],'dir'),T2ListTemp);
+                Index = cellfun(@(Series) exist(GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},Series),'dir'),T2ListTemp);
                 T2String{iSub,1} = T2ListTemp(find(Index));
             end
         end
@@ -1950,7 +1885,7 @@ else % Series first
             DwiListTemp = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesDwi]);
             DwiListTemp={DwiListTemp(:).name}';
             for iSub = 1:length(SubString)
-                Index = cellfun(@(Series) exist([handles.Cfg.WorkingDir,filesep,Series,filesep,SubString{iSub}],'dir'),DwiListTemp);
+                Index = cellfun(@(Series) exist(GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},Series),'dir'),DwiListTemp);
                 DwiString{iSub,1} = DwiListTemp(find(Index));
             end
         end
@@ -1959,7 +1894,7 @@ else % Series first
                 FieldFunListTemp = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesFieldFun{iSession}]);
                 FieldFunListTemp={FieldFunListTemp(:).name}';
                 for iSub = 1:length(SubString)
-                    Index = cellfun(@(Series) exist([handles.Cfg.WorkingDir,filesep,Series,filesep,SubString{iSub}],'dir'),FieldFunListTemp);
+                    Index = cellfun(@(Series) exist(GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},Series),'dir'),FieldFunListTemp);
                     FieldFunString{iSession}{iSub,1} = FieldFunListTemp(find(Index));
                 end
             end
@@ -1969,7 +1904,7 @@ else % Series first
                 FieldDwiListTemp = dir([handles.Cfg.WorkingDir,filesep,'*',SeriesFieldDwi{iSession}]);
                 FieldDwiListTemp={FieldDwiListTemp(:).name}';
                 for iSub = 1:length(SubString)
-                    Index = cellfun(@(Series) exist([handles.Cfg.WorkingDir,filesep,Series,filesep,SubString{iSub}],'dir'),FieldDwiListTemp);
+                    Index = cellfun(@(Series) exist(GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},Series),'dir'),FieldDwiListTemp);
                     FieldDwiString{iSession}{iSub,1} = FieldDwiListTemp(find(Index));
                 end
             end
@@ -1983,10 +1918,10 @@ else % Series first
                     FunSBRefListTemp={FunSBRefListTemp(:).name}';
                 end
                 for iSub = 1:length(SubString)
-                    Index = cellfun(@(Series) exist([handles.Cfg.WorkingDir,filesep,Series,filesep,SubString{iSub}],'dir'),FunAllListTemp);
+                    Index = cellfun(@(Series) exist(GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},Series),'dir'),FunAllListTemp);
                     FunAllString{iSession}{iSub,1} = FunAllListTemp(find(Index));
                     if isfield(handles.Cfg,'IsFunAllRef') && handles.Cfg.IsFunAllRef
-                        Index = cellfun(@(Series) exist([handles.Cfg.WorkingDir,filesep,Series,filesep,SubString{iSub}],'dir'),FunSBRefListTemp);
+                        Index = cellfun(@(Series) exist(GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},Series),'dir'),FunSBRefListTemp);
                         FunSBRefString{iSession}{iSub,1} = FunSBRefListTemp(find(Index));
                     end
                 end
@@ -2104,22 +2039,22 @@ if handles.Cfg.InputLayout == 1 % Participant first
                 nFileT1Plus = handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus{iSession};
                 try
                     T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
-                        (length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileT1Plus)>=0,...
+                        (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1Plus)>=0,...
                         T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
                 catch
                     T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
-                        (length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileT1Plus)>=0,...
+                        (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1Plus)>=0,...
                         T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
                 end
             else
                 nFileT1Plus = handles.Cfg.SeriesFileNumber.List.T1Plus{iSession}(handles.Cfg.SeriesFileNumber.Flag.T1Plus(iSession));
                 try
                     T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
-                        ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileT1Plus),...
+                        ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1Plus),...
                         T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
                 catch
                     T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
-                        ~(length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileT1Plus),...
+                        ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1Plus),...
                         T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
                 end
             end
@@ -2129,22 +2064,22 @@ if handles.Cfg.InputLayout == 1 % Participant first
             nFileT1 = handles.Cfg.SeriesFileNumber.LowThreshold.T1;
             try
                 T1Status = cellfun(@(Series,Sub) ...
-                    (length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileT1)>=0,...
+                    (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1)>=0,...
                     T1String,SubString_T1,'UniformOutput', false);
             catch
                 T1Status = cellfun(@(Series,Sub) ...
-                    (length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileT1)>=0,...
+                    (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1)>=0,...
                     T1String,SubString_T1,'UniformOutput', false);
             end
         else
             nFileT1 = handles.Cfg.SeriesFileNumber.List.T1(handles.Cfg.SeriesFileNumber.Flag.T1);
             try
                 T1Status = cellfun(@(Series,Sub) ...
-                    ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileT1),...
+                    ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1),...
                     T1String,SubString_T1,'UniformOutput', false);
             catch
                 T1Status = cellfun(@(Series,Sub) ...
-                    ~(length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileT1),...
+                    ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1),...
                     T1String,SubString_T1,'UniformOutput', false);
             end
         end
@@ -2156,22 +2091,22 @@ if handles.Cfg.InputLayout == 1 % Participant first
                 nFileT2 = handles.Cfg.SeriesFileNumber.LowThreshold.T2;
                 try
                     T2Status = cellfun(@(Series,Sub) ...
-                        (length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileT2)>=0,...
+                        (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT2)>=0,...
                         T2String,SubString_T2,'UniformOutput', false);
                 catch
                     T2Status = cellfun(@(Series,Sub) ...
-                        (length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileT2)>=0,...
+                        (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT2)>=0,...
                         T2String,SubString_T2,'UniformOutput', false);
                 end
             else
                 nFileT2 = handles.Cfg.SeriesFileNumber.List.T2(handles.Cfg.SeriesFileNumber.Flag.T2);
                 try
                     T2Status = cellfun(@(Series,Sub) ...
-                        ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileT2),...
+                        ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT2),...
                         T2String,SubString_T2,'UniformOutput', false);
                 catch
                     T2Status = cellfun(@(Series,Sub) ...
-                        ~(length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileT2),...
+                        ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT2),...
                         T2String,SubString_T2,'UniformOutput', false);
                 end
             end
@@ -2182,22 +2117,22 @@ if handles.Cfg.InputLayout == 1 % Participant first
                 nFileDwi = handles.Cfg.SeriesFileNumber.LowThreshold.Dwi;
                 try
                     DwiStatus = cellfun(@(Series,Sub) ...
-                        (length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileDwi)>=0,...
+                        (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileDwi)>=0,...
                         DwiString,SubString_Dwi,'UniformOutput', false);
                 catch
                     DwiStatus = cellfun(@(Series,Sub) ...
-                        (length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileDwi)>=0,...
+                        (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileDwi)>=0,...
                         DwiString,SubString_Dwi,'UniformOutput', false);
                 end
             else
                 nFileDwi = handles.Cfg.SeriesFileNumber.List.Dwi(handles.Cfg.SeriesFileNumber.Flag.Dwi);
                 try
                     DwiStatus = cellfun(@(Series,Sub) ...
-                        ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileDwi),...
+                        ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileDwi),...
                         DwiString,SubString_Dwi,'UniformOutput', false);
                 catch
                     DwiStatus = cellfun(@(Series,Sub) ...
-                        ~(length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileDwi),...
+                        ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileDwi),...
                         DwiString,SubString_Dwi,'UniformOutput', false);
                 end
             end
@@ -2209,22 +2144,22 @@ if handles.Cfg.InputLayout == 1 % Participant first
                     nFileFieldFun = handles.Cfg.SeriesFileNumber.LowThreshold.FieldFun{iSession};
                     try
                         FieldFunStatus{iSession} = cellfun(@(Series,Sub) ...
-                            (length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileFieldFun)>=0,...
+                            (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldFun)>=0,...
                             FieldFunString{iSession},SubString_FieldFun{iSession},'UniformOutput', false);
                     catch
                         FieldFunStatus{iSession} = cellfun(@(Series,Sub) ...
-                            (length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileFieldFun)>=0,...
+                            (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldFun)>=0,...
                             FieldFunString{iSession},SubString_FieldFun{iSession},'UniformOutput', false);
                     end
                 else
                     nFileFieldFun = handles.Cfg.SeriesFileNumber.List.FieldFun{iSession}(handles.Cfg.SeriesFileNumber.Flag.FieldFun(iSession));
                     try
                         FieldFunStatus{iSession} = cellfun(@(Series,Sub) ...
-                            ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileFieldFun),...
+                            ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldFun),...
                             FieldFunString{iSession},SubString_FieldFun{iSession},'UniformOutput', false);
                     catch
                         FieldFunStatus{iSession} = cellfun(@(Series,Sub) ...
-                            ~(length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileFieldFun),...
+                            ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldFun),...
                             FieldFunString{iSession},SubString_FieldFun{iSession},'UniformOutput', false);
                     end
                 end
@@ -2237,22 +2172,22 @@ if handles.Cfg.InputLayout == 1 % Participant first
                     nFileFieldDwi = handles.Cfg.SeriesFileNumber.LowThreshold.FieldDwi{iSession};
                     try
                         FieldDwiStatus{iSession} = cellfun(@(Series,Sub) ...
-                            (length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileFieldDwi)>=0,...
+                            (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldDwi)>=0,...
                             FieldDwiString{iSession},SubString_FieldDwi{iSession},'UniformOutput', false);
                     catch
                         FieldDwiStatus{iSession} = cellfun(@(Series,Sub) ...
-                            (length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileFieldDwi)>=0,...
+                            (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldDwi)>=0,...
                             FieldDwiString{iSession},SubString_FieldDwi{iSession},'UniformOutput', false);
                     end
                 else
                     nFileFieldDwi = handles.Cfg.SeriesFileNumber.List.FieldDwi{iSession}(handles.Cfg.SeriesFileNumber.Flag.FieldDwi(iSession));
                     try
                         FieldDwiStatus{iSession} = cellfun(@(Series,Sub) ...
-                            ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileFieldDwi),...
+                            ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldDwi),...
                             FieldDwiString{iSession},SubString_FieldDwi{iSession},'UniformOutput', false);
                     catch
                         FieldDwiStatus{iSession} = cellfun(@(Series,Sub) ...
-                            ~(length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileFieldDwi),...
+                            ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldDwi),...
                             FieldDwiString{iSession},SubString_FieldDwi{iSession},'UniformOutput', false);
                     end
                 end
@@ -2265,22 +2200,22 @@ if handles.Cfg.InputLayout == 1 % Participant first
                     nFileFunAll = handles.Cfg.SeriesFileNumber.LowThreshold.FunAll{iSession};
                     try
                         FunAllStatus{iSession} = cellfun(@(Series,Sub) ...
-                            (length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileFunAll)>=0,...
+                            (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunAll)>=0,...
                             FunAllString{iSession},SubString_FunAll{iSession},'UniformOutput', false);
                     catch
                         FunAllStatus{iSession} = cellfun(@(Series,Sub) ...
-                            (length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileFunAll)>=0,...
+                            (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunAll)>=0,...
                             FunAllString{iSession},SubString_FunAll{iSession},'UniformOutput', false);
                     end
                 else
                     nFileFunAll = handles.Cfg.SeriesFileNumber.List.FunAll{iSession}(handles.Cfg.SeriesFileNumber.Flag.FunAll(iSession));
                     try
                         FunAllStatus{iSession} = cellfun(@(Series,Sub) ...
-                            ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileFunAll),...
+                            ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunAll),...
                             FunAllString{iSession},SubString_FunAll{iSession},'UniformOutput', false);
                     catch
                         FunAllStatus{iSession} = cellfun(@(Series,Sub) ...
-                            ~(length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileFunAll),...
+                            ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunAll),...
                             FunAllString{iSession},SubString_FunAll{iSession},'UniformOutput', false);
                     end
                 end
@@ -2288,16 +2223,16 @@ if handles.Cfg.InputLayout == 1 % Participant first
                     if handles.Cfg.SeriesFileNumber.LowLimitMode.FunSBRef{iSession}
                         nFileFunSBRef = handles.Cfg.SeriesFileNumber.LowThreshold.FunSBRef{iSession};
                         try
-                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) (length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileFunSBRef)>=0,FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
+                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunSBRef)>=0,FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
                         catch
-                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) (length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileFunSBRef)>=0,FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
+                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunSBRef)>=0,FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
                         end
                     else
                         nFileFunSBRef = handles.Cfg.SeriesFileNumber.List.FunSBRef{iSession}(handles.Cfg.SeriesFileNumber.Flag.FunSBRef(iSession));
                         try
-                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]).listFiles)-nFileFunSBRef),FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
+                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunSBRef),FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
                         catch
-                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ~(length(dir([handles.Cfg.WorkingDir,filesep,Sub,filesep,Series]))-handles.Cfg.nFileOperator-nFileFunSBRef),FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
+                            FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunSBRef),FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
                         end
                     end
                 end
@@ -2312,11 +2247,11 @@ else % Series first
                 nFileT1Plus = handles.Cfg.SeriesFileNumber.LowThreshold.T1Plus{iSession};
                 try
                     T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
-                        (length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileT1Plus)>=0,...
+                        (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1Plus)>=0,...
                         T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
                 catch
                     T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
-                        (length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileT1Plus)>=0,...
+                        (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1Plus)>=0,...
                         T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
                 end
             end
@@ -2325,11 +2260,11 @@ else % Series first
                 nFileT1Plus = handles.Cfg.SeriesFileNumber.List.T1Plus{iSession}(handles.Cfg.SeriesFileNumber.Flag.T1Plus(iSession));
                 try
                     T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
-                        ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileT1Plus),...
+                        ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1Plus),...
                         T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
                 catch
                     T1PlusStatus{iSession} = cellfun(@(Series,Sub) ...
-                        ~(length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileT1Plus),...
+                        ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1Plus),...
                         T1PlusString{iSession},SubString_T1Plus{iSession},'UniformOutput', false);
                 end
             end
@@ -2338,12 +2273,12 @@ else % Series first
         if handles.Cfg.SeriesFileNumber.LowLimitMode.T1 % Do not fix the number of dicom files, setting a lower threshold for the number. Bin Lu, 20220921.
             nFileT1 = handles.Cfg.SeriesFileNumber.LowThreshold.T1;
             T1Status = cellfun(@(Series,Sub) ...
-                (length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileT1)>=0,...
+                (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1)>=0,...
                 T1String,SubString_T1,'UniformOutput', false);
         else
             nFileT1 = handles.Cfg.SeriesFileNumber.List.T1(handles.Cfg.SeriesFileNumber.Flag.T1);
             T1Status = cellfun(@(Series,Sub) ...
-                ~(length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileT1),...
+                ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT1),...
                 T1String,SubString_T1,'UniformOutput', false);
         end
     end
@@ -2352,12 +2287,12 @@ else % Series first
             if handles.Cfg.SeriesFileNumber.LowLimitMode.T2 % Do not fix the number of dicom files, setting a lower threshold for the number. Bin Lu, 20220921.
                 nFileT2 = handles.Cfg.SeriesFileNumber.LowThreshold.T2;
                 T2Status = cellfun(@(Series,Sub) ...
-                    (length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileT2)>=0,...
+                    (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT2)>=0,...
                     T2String,SubString_T2,'UniformOutput', false);
             else
                 nFileT2 = handles.Cfg.SeriesFileNumber.List.T2(handles.Cfg.SeriesFileNumber.Flag.T2);
                 T2Status = cellfun(@(Series,Sub) ...
-                    ~(length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileT2),...
+                    ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileT2),...
                     T2String,SubString_T2,'UniformOutput', false);
             end
         end
@@ -2365,12 +2300,12 @@ else % Series first
             if handles.Cfg.SeriesFileNumber.LowLimitMode.Dwi % Do not fix the number of dicom files, setting a lower threshold for the number. Bin Lu, 20220921.
                 nFileDwi = handles.Cfg.SeriesFileNumber.LowThreshold.Dwi;
                 DwiStatus = cellfun(@(Series,Sub) ...
-                    (length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileDwi)>=0,...
+                    (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileDwi)>=0,...
                     DwiString,SubString_Dwi,'UniformOutput', false);
             else
                 nFileDwi = handles.Cfg.SeriesFileNumber.List.Dwi(handles.Cfg.SeriesFileNumber.Flag.Dwi);
                 DwiStatus = cellfun(@(Series,Sub) ...
-                    ~(length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileDwi),...
+                    ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileDwi),...
                     DwiString,SubString_Dwi,'UniformOutput', false);
             end
         end
@@ -2380,11 +2315,11 @@ else % Series first
                     nFileFieldFun = handles.Cfg.SeriesFileNumber.LowThreshold.FieldFun{iSession};
                     try
                         FieldFunStatus{iSession} = cellfun(@(Series,Sub) ...
-                            (length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileFieldFun)>=0,...
+                            (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldFun)>=0,...
                             FieldFunString{iSession},SubString_FieldFun{iSession},'UniformOutput', false);
                     catch
                         FieldFunStatus{iSession} = cellfun(@(Series,Sub) ...
-                            (length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileFieldFun)>=0,...
+                            (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldFun)>=0,...
                             FieldFunString{iSession},SubString_FieldFun{iSession},'UniformOutput', false);
                     end
                 end
@@ -2393,11 +2328,11 @@ else % Series first
                     nFileFieldFun = handles.Cfg.SeriesFileNumber.List.FieldFun{iSession}(handles.Cfg.SeriesFileNumber.Flag.FieldFun(iSession));
                     try
                         FieldFunStatus{iSession} = cellfun(@(Series,Sub) ...
-                            ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileFieldFun),...
+                            ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldFun),...
                             FieldFunString{iSession},SubString_FieldFun{iSession},'UniformOutput', false);
                     catch
                         FieldFunStatus{iSession} = cellfun(@(Series,Sub) ...
-                            ~(length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileFieldFun),...
+                            ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldFun),...
                             FieldFunString{iSession},SubString_FieldFun{iSession},'UniformOutput', false);
                     end
                 end
@@ -2409,11 +2344,11 @@ else % Series first
                     nFileFieldDwi = handles.Cfg.SeriesFileNumber.LowThreshold.FieldDwi{iSession};
                     try
                         FieldDwiStatus{iSession} = cellfun(@(Series,Sub) ...
-                            (length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileFieldDwi)>=0,...
+                            (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldDwi)>=0,...
                             FieldDwiString{iSession},SubString_FieldDwi{iSession},'UniformOutput', false);
                     catch
                         FieldDwiStatus{iSession} = cellfun(@(Series,Sub) ...
-                            (length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileFieldDwi)>=0,...
+                            (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldDwi)>=0,...
                             FieldDwiString{iSession},SubString_FieldDwi{iSession},'UniformOutput', false);
                     end
                 end
@@ -2422,11 +2357,11 @@ else % Series first
                     nFileFieldDwi = handles.Cfg.SeriesFileNumber.List.FieldDwi{iSession}(handles.Cfg.SeriesFileNumber.Flag.FieldDwi(iSession));
                     try
                         FieldDwiStatus{iSession} = cellfun(@(Series,Sub) ...
-                            ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileFieldDwi),...
+                            ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldDwi),...
                             FieldDwiString{iSession},SubString_FieldDwi{iSession},'UniformOutput', false);
                     catch
                         FieldDwiStatus{iSession} = cellfun(@(Series,Sub) ...
-                            ~(length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileFieldDwi),...
+                            ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFieldDwi),...
                             FieldDwiString{iSession},SubString_FieldDwi{iSession},'UniformOutput', false);
                     end
                 end
@@ -2438,22 +2373,22 @@ else % Series first
                     nFileFunAll = handles.Cfg.SeriesFileNumber.LowThreshold.FunAll{iSession};
                     try
                         FunAllStatus{iSession} = cellfun(@(Series,Sub) ...
-                            (length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileFunAll)>=0,...
+                            (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunAll)>=0,...
                             FunAllString{iSession},SubString_FunAll{iSession},'UniformOutput', false);
                     catch
                         FunAllStatus{iSession} = cellfun(@(Series,Sub) ...
-                            (length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileFunAll)>=0,...
+                            (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunAll)>=0,...
                             FunAllString{iSession},SubString_FunAll{iSession},'UniformOutput', false);
                     end
                 else
                     nFileFunAll = handles.Cfg.SeriesFileNumber.List.FunAll{iSession}(handles.Cfg.SeriesFileNumber.Flag.FunAll(iSession));
                     try
                         FunAllStatus{iSession} = cellfun(@(Series,Sub) ...
-                            ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileFunAll),...
+                            ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunAll),...
                             FunAllString{iSession},SubString_FunAll{iSession},'UniformOutput', false);
                     catch
                         FunAllStatus{iSession} = cellfun(@(Series,Sub) ...
-                            ~(length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileFunAll),...
+                            ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunAll),...
                             FunAllString{iSession},SubString_FunAll{iSession},'UniformOutput', false);
                     end
                 end
@@ -2462,22 +2397,22 @@ else % Series first
                         nFileFunSBRef = handles.Cfg.SeriesFileNumber.LowThreshold.FunSBRef{iSession};
                         try
                             FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ...
-                                (length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileFunSBRef)>=0,...
+                                (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunSBRef)>=0,...
                                 FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
                         catch
                             FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ...
-                                (length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileFunSBRef)>=0,...
+                                (CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunSBRef)>=0,...
                                 FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
                         end
                     else
                         nFileFunSBRef = handles.Cfg.SeriesFileNumber.List.FunSBRef{iSession}(handles.Cfg.SeriesFileNumber.Flag.FunSBRef(iSession));
                         try
                             FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ...
-                                ~(length(java.io.File([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]).listFiles)-handles.Cfg.nFileOperator-nFileFunSBRef),...
+                                ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunSBRef),...
                                 FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
                         catch
                             FunSBRefStatus{iSession} = cellfun(@(Series,Sub) ...
-                                ~(length(dir([handles.Cfg.WorkingDir,filesep,Series,filesep,Sub]))-handles.Cfg.nFileOperator-nFileFunSBRef),...
+                                ~(CountSeriesDicomFiles(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,Sub,Series)-nFileFunSBRef),...
                                 FunSBRefString{iSession},SubString_FunSBRef{iSession},'UniformOutput', false);
                         end
                     end
@@ -2533,9 +2468,9 @@ if handles.Cfg.InputLayout == 1 % Participant first
                         Selection = ManuallySelectSeries(handles.Cfg.SxT1PlusList(iSession),SubString{iSub},SeriesList,'Template1');
                         Index = [];
                         Index = Selection.Results(1)-1; % Minus "please select" line
-                        T1PlusInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Index}];
+                        T1PlusInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                     else
-                        T1PlusInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,T1PlusString{iSession}{iSub,Index(end)}];
+                        T1PlusInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},T1PlusString{iSession}{iSub,Index(end)});
                     end
                 end
             end
@@ -2549,9 +2484,9 @@ if handles.Cfg.InputLayout == 1 % Participant first
                     %ManuallySelectSeries({'FunRaw';'S2_FunRaw'},'BinLu',{'Series1';'Series2';'Series3'},'Template1');
                     Index = [];
                     Index = Selection.Results(1)-1; % Minus "please select" line
-                    T1InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Index}];
+                    T1InputDir{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                 else
-                    T1InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,T1String{iSub,Index(end)}];
+                    T1InputDir{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},T1String{iSub,Index(end)});
                 end
             end
         end
@@ -2567,9 +2502,9 @@ if handles.Cfg.InputLayout == 1 % Participant first
                     %ManuallySelectSeries({'FunRaw';'S2_FunRaw'},'BinLu',{'Series1';'Series2';'Series3'},'Template1');
                     Index = [];
                     Index = Selection.Results(1)-1; % Minus "please select" line
-                    T2InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Index}];
+                    T2InputDir{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                 else
-                    T2InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,T2String{iSub,Index(end)}];
+                    T2InputDir{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},T2String{iSub,Index(end)});
                 end
             end
         end        
@@ -2585,9 +2520,9 @@ if handles.Cfg.InputLayout == 1 % Participant first
                     %ManuallySelectSeries({'FunRaw';'S2_FunRaw'},'BinLu',{'Series1';'Series2';'Series3'},'Template1');
                     Index = [];
                     Index = Selection.Results(1)-1; % Minus "please select" line
-                    DwiInputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Index}];
+                    DwiInputDir{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                 else
-                    DwiInputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,DwiString{iSub,Index(end)}];
+                    DwiInputDir{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},DwiString{iSub,Index(end)});
                 end
             end
         end
@@ -2607,9 +2542,9 @@ if handles.Cfg.InputLayout == 1 % Participant first
 %                             handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
                             Index = [];
                             Index = Selection.Results(1)-1; % Minus "please select" line
-                            FieldFunInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Index}];
+                            FieldFunInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                         else
-                            FieldFunInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,FieldFunString{iSession}{iSub,Index(end)}];
+                            FieldFunInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},FieldFunString{iSession}{iSub,Index(end)});
                         end
                     else % Exist same-series-name problem (e.g. A FieldMap MR series generates 2 folders of DICOMs with same folder names (e.g. one for PhaseDiff, one for magnitude...)
                         if AllFixedFileNumber
@@ -2628,16 +2563,15 @@ if handles.Cfg.InputLayout == 1 % Participant first
                                 end
                                 Selection = ManuallySelectSeries(SessionName,SubString{iSub},SeriesList,Template);
                                 for i = 1:length(Flag)
-                                    FieldFunInputDir{Flag(i)}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Selection.Results(i)-1}];
+                                    FieldFunInputDir{Flag(i)}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Selection.Results(i)-1});
                                 end
                             elseif handles.Cfg.SameSeriesName.FieldFun.Strategy == 1 && length(Index) == handles.Cfg.FieldFunFolderNumber % SameSeriesName.Strategy == 1; use index to allocate same-name-series
                                 Flag = find(handles.Cfg.SameSeriesName.FieldFun.FlagMatrix(iSession,:));
                                 SeriesList = FieldFunString{iSession}(iSub,Index)';
-                                DashIndex = strfind(SeriesList{1},'_');
-                                [~,I] = sort(cellfun(@(Series) str2num(Series(1:DashIndex-1)),SeriesList));
+                                [~,I] = sort(cellfun(@GetSeriesNumberPrefix,SeriesList));
                                 SeriesList = SeriesList(I);
                                 for i = 1:length(Flag)
-                                    FieldFunInputDir{Flag(i)}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{i}];
+                                    FieldFunInputDir{Flag(i)}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{i});
                                 end
                             end
                         else
@@ -2647,9 +2581,9 @@ if handles.Cfg.InputLayout == 1 % Participant first
 %                                 handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
                                 Index = [];
                                 Index = Selection.Results(1)-1; % Minus "please select" line
-                                FieldFunInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Index}];
+                                FieldFunInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                             else
-                                FieldFunInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,FieldFunString{iSession}{iSub,Index(end)}];
+                                FieldFunInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},FieldFunString{iSession}{iSub,Index(end)});
                             end
                         end
                     end
@@ -2672,9 +2606,9 @@ if handles.Cfg.InputLayout == 1 % Participant first
 %                             handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
                             Index = [];
                             Index = Selection.Results(1)-1; % Minus "please select" line
-                            FieldDwiInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Index}];
+                            FieldDwiInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                         else
-                            FieldDwiInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,FieldDwiString{iSession}{iSub,Index(end)}];
+                            FieldDwiInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},FieldDwiString{iSession}{iSub,Index(end)});
                         end
                     else % Exist same-series-name problem (e.g. A FieldMap MR series generates 2 folders of DICOMs with same folder names (e.g. one for PhaseDiff, one for magnitude...)
                         if AllFixedFileNumber
@@ -2693,16 +2627,15 @@ if handles.Cfg.InputLayout == 1 % Participant first
                                 end
                                 Selection = ManuallySelectSeries(SessionName,SubString{iSub},SeriesList,Template);
                                 for i = 1:length(Flag)
-                                    FieldDwiInputDir{Flag(i)}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Selection.Results(i)-1}];
+                                    FieldDwiInputDir{Flag(i)}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Selection.Results(i)-1});
                                 end
                             elseif handles.Cfg.SameSeriesName.FieldDwi.Strategy == 1 && length(Index) == handles.Cfg.FieldDwiFolderNumber % SameSeriesName.Strategy == 1; use index to allocate same-name-series
                                 Flag = find(handles.Cfg.SameSeriesName.FieldDwi.FlagMatrix(iSession,:));
                                 SeriesList = FieldDwiString{iSession}(iSub,Index)';
-                                DashIndex = strfind(SeriesList{1},'_');
-                                [~,I] = sort(cellfun(@(Series) str2num(Series(1:DashIndex-1)),SeriesList));
+                                [~,I] = sort(cellfun(@GetSeriesNumberPrefix,SeriesList));
                                 SeriesList = SeriesList(I);
                                 for i = 1:length(Flag)
-                                    FieldDwiInputDir{Flag(i)}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{i}];
+                                    FieldDwiInputDir{Flag(i)}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{i});
                                 end
                             end
                         else
@@ -2712,9 +2645,9 @@ if handles.Cfg.InputLayout == 1 % Participant first
 %                                 handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
                                 Index = [];
                                 Index = Selection.Results(1)-1; % Minus "please select" line
-                                FieldDwiInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Index}];
+                                FieldDwiInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                             else
-                                FieldDwiInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,FieldDwiString{iSession}{iSub,Index(end)}];
+                                FieldDwiInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},FieldDwiString{iSession}{iSub,Index(end)});
                             end
                         end
                     end
@@ -2737,9 +2670,9 @@ if handles.Cfg.InputLayout == 1 % Participant first
 %                             handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
                             Index = [];
                             Index = Selection.Results(1)-1; % Minus "please select" line
-                            FunAllInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Index}];
+                            FunAllInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                         else 
-                            FunAllInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,FunAllString{iSession}{iSub,Index(end)}];
+                            FunAllInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},FunAllString{iSession}{iSub,Index(end)});
                         end
                     else % Exist same-series-name problem (e.g. The series names of REST and Task sessions were all set as "YanLab_Exp1_BOLD" ...)
                         if AllFixedFileNumber
@@ -2758,16 +2691,15 @@ if handles.Cfg.InputLayout == 1 % Participant first
                                 end
                                 Selection = ManuallySelectSeries(SessionName,SubString{iSub},SeriesList,Template);
                                 for i = 1:length(Flag)
-                                    FunAllInputDir{Flag(i)}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Selection.Results(i)-1}];
+                                    FunAllInputDir{Flag(i)}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Selection.Results(i)-1});
                                 end
                             elseif handles.Cfg.SameSeriesName.FunAll.Strategy == 1 && length(Index) == handles.Cfg.FunSessionNumber % SameSeriesName.Strategy == 1; use index to allocate same-name-series
                                 Flag = find(handles.Cfg.SameSeriesName.FunAll.FlagMatrix(iSession,:));
                                 SeriesList = FunAllString{iSession}(iSub,Index)';
-                                DashIndex = strfind(SeriesList{1},'_');
-                                [~,I] = sort(cellfun(@(Series) str2num(Series(1:DashIndex-1)),SeriesList));
+                                [~,I] = sort(cellfun(@GetSeriesNumberPrefix,SeriesList));
                                 SeriesList = SeriesList(I);
                                 for i = 1:length(Flag)
-                                    FunAllInputDir{Flag(i)}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{i}];
+                                    FunAllInputDir{Flag(i)}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{i});
                                 end
                             end
                         else % If the number of qualified series >1, manually select
@@ -2777,9 +2709,9 @@ if handles.Cfg.InputLayout == 1 % Participant first
 %                                 handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
                                 Index = [];
                                 Index = Selection.Results(1)-1; % Minus "please select" line
-                                FunAllInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesList{Index}];
+                                FunAllInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                             else
-                                FunAllInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,FunAllString{iSession}{iSub,Index(end)}];
+                                FunAllInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},FunAllString{iSession}{iSub,Index(end)});
                             end
                         end
                     end
@@ -2802,9 +2734,9 @@ else % series first
                         %                             handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
                         Index = [];
                         Index = Selection.Results(1)-1; % Minus "please select" line
-                        T1PlusInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Index},filesep,SubString{iSub}];
+                        T1PlusInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                     else
-                        T1PlusInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,T1PlusString{iSession}{iSub,Index(end)},filesep,SubString{iSub}];
+                        T1PlusInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},T1PlusString{iSession}{iSub,Index(end)});
                     end
                 end
             end
@@ -2818,9 +2750,9 @@ else % series first
                     %ManuallySelectSeries({'FunRaw';'S2_FunRaw'},'BinLu',{'Series1';'Series2';'Series3'},'Template1');
                     Index = [];
                     Index = Selection.Results(1)-1; % Minus "please select" line
-                    T1InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Index},filesep,SubString{iSub}];
+                    T1InputDir{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                 else
-                    T1InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,T1String{iSub,Index(end)},filesep,SubString{iSub}];
+                    T1InputDir{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},T1String{iSub,Index(end)});
                 end
             end
         end
@@ -2836,9 +2768,9 @@ else % series first
                     %ManuallySelectSeries({'FunRaw';'S2_FunRaw'},'BinLu',{'Series1';'Series2';'Series3'},'Template1');
                     Index = [];
                     Index = Selection.Results(1)-1; % Minus "please select" line
-                    T2InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Index},filesep,SubString{iSub}];
+                    T2InputDir{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                 else
-                    T2InputDir{iSub} = [handles.Cfg.WorkingDir,filesep,T2String{iSub,Index(end)},filesep,SubString{iSub}];
+                    T2InputDir{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},T2String{iSub,Index(end)});
                 end
             end
         end
@@ -2854,9 +2786,9 @@ else % series first
                     %ManuallySelectSeries({'FunRaw';'S2_FunRaw'},'BinLu',{'Series1';'Series2';'Series3'},'Template1');
                     Index = [];
                     Index = Selection.Results(1)-1; % Minus "please select" line
-                    DwiInputDir{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Index},filesep,SubString{iSub}];
+                    DwiInputDir{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                 else
-                    DwiInputDir{iSub} = [handles.Cfg.WorkingDir,filesep,DwiString{iSub,Index(end)},filesep,SubString{iSub}];
+                    DwiInputDir{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},DwiString{iSub,Index(end)});
                 end
             end
         end
@@ -2876,9 +2808,9 @@ else % series first
 %                             handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
                             Index = [];
                             Index = Selection.Results(1)-1; % Minus "please select" line
-                            FieldFunInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Index},filesep,SubString{iSub}];
+                            FieldFunInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                         else
-                            FieldFunInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,FieldFunString{iSession}{iSub,Index(end)},filesep,SubString{iSub}];
+                            FieldFunInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},FieldFunString{iSession}{iSub,Index(end)});
                         end
                     else % Exist same-series-name problem (e.g. A FieldMap MR series generates 2 folders of DICOMs with same folder names (e.g. one for PhaseDiff, one for magnitude...)
                         if AllFixedFileNumber
@@ -2897,16 +2829,15 @@ else % series first
                                 end
                                 Selection = ManuallySelectSeries(SessionName,SubString{iSub},SeriesList,Template);
                                 for i = 1:length(Flag)
-                                    FieldFunInputDir{Flag(i)}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Selection.Results(i)-1},filesep,SubString{iSub}];
+                                    FieldFunInputDir{Flag(i)}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Selection.Results(i)-1});
                                 end
                             elseif handles.Cfg.SameSeriesName.FieldFun.Strategy == 1 && length(Index) == handles.Cfg.FieldFunFolderNumber % SameSeriesName.Strategy == 1; use index to allocate same-name-series
                                 Flag = find(handles.Cfg.SameSeriesName.FieldFun.FlagMatrix(iSession,:));
                                 SeriesList = FieldFunString{iSession}(iSub,Index)';
-                                DashIndex = strfind(SeriesList{1},'_');
-                                [~,I] = sort(cellfun(@(Series) str2num(Series(1:DashIndex-1)),SeriesList));
+                                [~,I] = sort(cellfun(@GetSeriesNumberPrefix,SeriesList));
                                 SeriesList = SeriesList(I);
                                 for i = 1:length(Flag)
-                                    FieldFunInputDir{Flag(i)}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{i},filesep,SubString{iSub}];
+                                    FieldFunInputDir{Flag(i)}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{i});
                                 end
                             end
                         else
@@ -2916,9 +2847,9 @@ else % series first
 %                                 handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
                                 Index = [];
                                 Index = Selection.Results(1)-1; % Minus "please select" line
-                                FieldFunInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Index},filesep,SubString{iSub}];
+                                FieldFunInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                             else
-                                FieldFunInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,FieldFunString{iSession}{iSub,Index(end)},filesep,SubString{iSub}];
+                                FieldFunInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},FieldFunString{iSession}{iSub,Index(end)});
                             end
                         end
                     end
@@ -2941,9 +2872,9 @@ else % series first
 %                             handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
                             Index = [];
                             Index = Selection.Results(1)-1; % Minus "please select" line
-                            FieldDwiInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Index},filesep,SubString{iSub}];
+                            FieldDwiInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                         else
-                            FieldDwiInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,FieldDwiString{iSession}{iSub,Index(end)},filesep,SubString{iSub}];
+                            FieldDwiInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},FieldDwiString{iSession}{iSub,Index(end)});
                         end
                     else % Exist same-series-name problem (e.g. A FieldMap MR series generates 2 folders of DICOMs with same folder names (e.g. one for PhaseDiff, one for magnitude...)
                         if AllFixedFileNumber
@@ -2962,16 +2893,15 @@ else % series first
                                 end
                                 Selection = ManuallySelectSeries(SessionName,SubString{iSub},SeriesList,Template);
                                 for i = 1:length(Flag)
-                                    FieldDwiInputDir{Flag(i)}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Selection.Results(i)-1},filesep,SubString{iSub}];
+                                    FieldDwiInputDir{Flag(i)}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Selection.Results(i)-1});
                                 end
                             elseif handles.Cfg.SameSeriesName.FieldDwi.Strategy == 1 && length(Index) == handles.Cfg.FieldDwiFolderNumber % SameSeriesName.Strategy == 1; use index to allocate same-name-series
                                 Flag = find(handles.Cfg.SameSeriesName.FieldDwi.FlagMatrix(iSession,:));
                                 SeriesList = FieldDwiString{iSession}(iSub,Index)';
-                                DashIndex = strfind(SeriesList{1},'_');
-                                [~,I] = sort(cellfun(@(Series) str2num(Series(1:DashIndex-1)),SeriesList));
+                                [~,I] = sort(cellfun(@GetSeriesNumberPrefix,SeriesList));
                                 SeriesList = SeriesList(I);
                                 for i = 1:length(Flag)
-                                    FieldDwiInputDir{Flag(i)}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{i},filesep,SubString{iSub}];
+                                    FieldDwiInputDir{Flag(i)}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{i});
                                 end
                             end
                         else
@@ -2981,9 +2911,9 @@ else % series first
 %                                 handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
                                 Index = [];
                                 Index = Selection.Results(1)-1; % Minus "please select" line
-                                FieldDwiInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Index},filesep,SubString{iSub}];
+                                FieldDwiInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                             else
-                                FieldDwiInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,FieldDwiString{iSession}{iSub,Index(end)},filesep,SubString{iSub}];
+                                FieldDwiInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},FieldDwiString{iSession}{iSub,Index(end)});
                             end
                         end
                     end
@@ -3006,9 +2936,9 @@ else % series first
 %                             handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
                             Index = [];
                             Index = Selection.Results(1)-1; % Minus "please select" line
-                            FunAllInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Index},filesep,SubString{iSub}];
+                            FunAllInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                         else
-                            FunAllInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,FunAllString{iSession}{iSub,Index(end)},filesep,SubString{iSub}];
+                            FunAllInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},FunAllString{iSession}{iSub,Index(end)});
                         end
                     else  % Exist same-series-name problem (e.g. The series names of REST and Task sessions were all set as "YanLab_Exp1_BOLD" ...)
                         if AllFixedFileNumber
@@ -3027,16 +2957,15 @@ else % series first
                                 end
                                 Selection = ManuallySelectSeries(SessionName,SubString{iSub},SeriesList,Template);
                                 for i = 1:length(Flag)
-                                    FunAllInputDir{Flag(i)}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Selection.Results(i)-1},filesep,SubString{iSub}];
+                                    FunAllInputDir{Flag(i)}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Selection.Results(i)-1});
                                 end
                             elseif handles.Cfg.SameSeriesName.FunAll.Strategy == 1 && length(Index) == handles.Cfg.FunSessionNumber % SameSeriesName.Strategy == 1; use index to allocate same-name-series
                                 Flag = find(handles.Cfg.SameSeriesName.FunAll.FlagMatrix(iSession,:));
                                 SeriesList = FunAllString{iSession}(iSub,Index)';
-                                DashIndex = strfind(SeriesList{1},'_');
-                                [~,I] = sort(cellfun(@(Series) str2num(Series(1:DashIndex-1)),SeriesList));
+                                [~,I] = sort(cellfun(@GetSeriesNumberPrefix,SeriesList));
                                 SeriesList = SeriesList(I);
                                 for i = 1:length(Flag)
-                                    FunAllInputDir{Flag(i)}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{i},filesep,SubString{iSub}];
+                                    FunAllInputDir{Flag(i)}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{i});
                                 end
                             end
                         else
@@ -3046,9 +2975,9 @@ else % series first
 %                                 handles.Cfg.AlwaysLatterSeries = Selection.AlwaysLatterSeries;
                                 Index = [];
                                 Index = Selection.Results(1)-1; % Minus "please select" line
-                                FunAllInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesList{Index},filesep,SubString{iSub}];
+                                FunAllInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesList{Index});
                             else
-                                FunAllInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,FunAllString{iSession}{iSub,Index(end)},filesep,SubString{iSub}];
+                                FunAllInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},FunAllString{iSession}{iSub,Index(end)});
                             end
                         end
                     end
@@ -3074,9 +3003,9 @@ if handles.Cfg.AnatOnly == 0 && handles.Cfg.IsOrganizeFun && isfield(handles.Cfg
                     SeriesNameTemp = FunSBRefString{iSession}{iSub,Index(end)};
                 end
                 if handles.Cfg.InputLayout == 1
-                    FunSBRefInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,SeriesNameTemp];
+                    FunSBRefInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesNameTemp);
                 else
-                    FunSBRefInputDir{iSession}{iSub} = [handles.Cfg.WorkingDir,filesep,SeriesNameTemp,filesep,SubString{iSub}];
+                    FunSBRefInputDir{iSession}{iSub} = GetSeriesDicomDir(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},SeriesNameTemp);
                 end
             end
         end
@@ -3123,11 +3052,8 @@ if handles.Cfg.AnatOnly == 0 && handles.Cfg.IsOrganizeFun && isfield(handles.Cfg
                 continue;
             end
             
-            % For data from DPABI_DicomSorter, the index should be removed here to match more series
-            Index = strfind(EchoSeries{1},'_');
-            if ~isempty(Index) && ~isnan(str2double(EchoSeries{1}(1:Index(1)-1))) %% For xnat-like output series name. Bin Lu. 20221212.
-                EchoSeries = cellfun(@(Series) Series(Index(1)+1:end),EchoSeries,'UniformOutput',0);
-            end
+            % For data from DPABI_DicomSorter and XNAT, the numeric series prefix should be ignored.
+            EchoSeries = RemoveSeriesNumberPrefix(EchoSeries);
             handles.Cfg.MultiEchoSeriesNames{iSession} = EchoSeries;
             handles.Cfg.MultiEchoNEcho(iSession) = numel(EchoSeries);
 
@@ -3143,7 +3069,7 @@ if handles.Cfg.AnatOnly == 0 && handles.Cfg.IsOrganizeFun && isfield(handles.Cfg
                 
                 for e = 1:numel(EchoSeries) % Find the other echos
                     if handles.Cfg.InputLayout == 1 % Participant first
-                        tempDir = dir([handles.Cfg.WorkingDir,filesep,SubString{iSub},filesep,'*',EchoSeries{e}]); %<WorkingDir>/<SubID>/<SeriesA>
+                        tempDir = FindMatchingSeriesDirs(handles.Cfg.WorkingDir,handles.Cfg.InputLayout,SubString{iSub},EchoSeries{e}); %<WorkingDir>/<SubID>/<SeriesA>
                     else
                         tempDir = dir([handles.Cfg.WorkingDir,filesep,'*',EchoSeries{e},filesep,SubString{iSub}]); %<WorkingDir>/<SeriesA>/<SubID>
                     end
@@ -3154,17 +3080,15 @@ if handles.Cfg.AnatOnly == 0 && handles.Cfg.IsOrganizeFun && isfield(handles.Cfg
                         % Check file count for each echo
                         tempDirFlag = ones(length(tempDir),1);
                         for iEcho = 1:numel(tempDir) % Check echo file numbers
-                            nFile = numel(dir([tempDir(iEcho).folder,filesep,tempDir(iEcho).name,filesep,'*.dcm']));
-                            if nFile == 0
-                                tmp = dir([tempDir(iEcho).folder,filesep,tempDir(iEcho).name]); tmp = tmp(~[tmp.isdir]);
-                                tmp = tmp(~ismember({tmp.name},{'.','..','.DS_Store'}));
-                                nFile = numel(tmp);
-                            end
+                            nFile = CountDicomFilesInDir(GetDicomDirFromSeriesDir(fullfile(tempDir(iEcho).folder,tempDir(iEcho).name)));
                             if nFile ~= handles.Cfg.SeriesFileNumber.List.FunAll{iSession}(handles.Cfg.SeriesFileNumber.Flag.FunAll(iSession))  % ruling out the reference series for multi-echo
                                 tempDirFlag(iEcho) = 0;
                             end
                         end
                         tempDir = tempDir(find(tempDirFlag));
+                        if isempty(tempDir)
+                            EchoFullFlag = 0; break;
+                        end
                         
                         if length(tempDir)>1 % 1. deal with multiple qualified echoes and 2. fallback for totally same series-names for different echoes (what a disaster...)
                             % Then organize all echoes at once
@@ -3193,19 +3117,18 @@ if handles.Cfg.AnatOnly == 0 && handles.Cfg.IsOrganizeFun && isfield(handles.Cfg
                                 Selection = ManuallySelectSeries(EchoList,SubString{iSub},SeriesList,Template);
                                 Index = Selection.Results-1; % Minus "please select" line
                                 for iEcho = 1:handles.Cfg.MultiEchoNEcho(iSession)
-                                    EchoDirsFull{iEcho} = [tempDir(Index(iEcho)).folder,filesep,tempDir(Index(iEcho)).name];
+                                    EchoDirsFull{iEcho} = GetDicomDirFromSeriesDir(fullfile(tempDir(Index(iEcho)).folder,tempDir(Index(iEcho)).name));
                                 end
                             else % use index to allocate same-name-series
-                                DashIndex = strfind(SeriesList{1},'_');
-                                [~,I] = sort(cellfun(@(Series) str2num(Series(1:DashIndex(1)-1)),SeriesList));
+                                [~,I] = sort(cellfun(@GetSeriesNumberPrefix,SeriesList));
                                 tempDirSorted = tempDir(I);
                                 for iEcho = 1:handles.Cfg.MultiEchoNEcho(iSession)
-                                    EchoDirsFull{iEcho}= [tempDirSorted(iEcho).folder,filesep,tempDirSorted(iEcho).name];
+                                    EchoDirsFull{iEcho}= GetDicomDirFromSeriesDir(fullfile(tempDirSorted(iEcho).folder,tempDirSorted(iEcho).name));
                                 end
                             end
                             break;
                         else % do normal echo-by-echo organization
-                            EchoDirsFull{e} = [tempDir.folder,filesep,tempDir.name];
+                            EchoDirsFull{e} = GetDicomDirFromSeriesDir(fullfile(tempDir.folder,tempDir.name));
                         end
                     end
                 end
@@ -5336,6 +5259,142 @@ guidata(hObject,handles);
 handles = guidata(hObject);
 
 
+function DirStruct = GetValidDirStruct(DirName)
+DirStruct = [];
+if isempty(DirName) || ~exist(DirName,'dir')
+    return;
+end
+DirStruct = dir(DirName);
+if isempty(DirStruct)
+    return;
+end
+Index = [DirStruct.isdir] & ~ismember({DirStruct.name},{'.','..','.DS_Store'});
+DirStruct = DirStruct(Index);
+
+
+function SeriesBaseDir = GetSubjectSeriesBaseDir(WorkingDir, SubID)
+SeriesBaseDir = fullfile(WorkingDir,SubID);
+XNATScansDir = fullfile(SeriesBaseDir,'scans');
+if exist(XNATScansDir,'dir')
+    SeriesBaseDir = XNATScansDir;
+end
+
+
+function SeriesStruct = FindMatchingSeriesDirs(WorkingDir, InputLayout, SubID, SeriesName)
+SeriesStruct = [];
+SeriesName = RemoveSeriesNumberPrefix(SeriesName);
+if InputLayout == 1
+    SeriesBaseDir = GetSubjectSeriesBaseDir(WorkingDir,SubID);
+    if ~exist(SeriesBaseDir,'dir')
+        return;
+    end
+    SeriesStruct = dir(fullfile(SeriesBaseDir,['*',SeriesName]));
+else
+    if ~exist(WorkingDir,'dir')
+        return;
+    end
+    SeriesStruct = dir(fullfile(WorkingDir,['*',SeriesName]));
+end
+if isempty(SeriesStruct)
+    return;
+end
+Index = [SeriesStruct.isdir] & ~ismember({SeriesStruct.name},{'.','..','.DS_Store'});
+SeriesStruct = SeriesStruct(Index);
+
+
+function DicomDir = GetSeriesDicomDir(WorkingDir, InputLayout, SubID, SeriesName)
+if isempty(SeriesName) || strcmp(SeriesName,'padding') || strcmp(SeriesName,'PseudoSeries')
+    DicomDir = '';
+    return;
+end
+if InputLayout == 1
+    SeriesDir = fullfile(GetSubjectSeriesBaseDir(WorkingDir,SubID),SeriesName);
+else
+    SeriesDir = fullfile(WorkingDir,SeriesName,SubID);
+end
+DicomDir = GetDicomDirFromSeriesDir(SeriesDir);
+
+
+function DicomDir = GetDicomDirFromSeriesDir(SeriesDir)
+DicomDir = SeriesDir;
+ResourceDir = fullfile(SeriesDir,'resources');
+if exist(ResourceDir,'dir')
+    ResourceList = GetValidDirStruct(ResourceDir);
+    if ~isempty(ResourceList)
+        DicomIndex = find(strcmpi({ResourceList.name},'DICOM'),1);
+        if ~isempty(DicomIndex)
+            DicomDir = fullfile(ResourceDir,ResourceList(DicomIndex).name);
+        end
+    end
+end
+
+
+function nFile = CountSeriesDicomFiles(WorkingDir, InputLayout, SubID, SeriesName)
+DicomDir = GetSeriesDicomDir(WorkingDir,InputLayout,SubID,SeriesName);
+nFile = CountDicomFilesInDir(DicomDir);
+
+
+function nFile = CountDicomFilesInDir(DicomDir)
+FileList = GetDicomFileList(DicomDir);
+nFile = numel(FileList);
+
+
+function FileList = GetDicomFileList(DicomDir)
+FileList = [];
+if isempty(DicomDir) || ~exist(DicomDir,'dir')
+    return;
+end
+FileList = dir(fullfile(DicomDir,'*.dcm'));
+if isempty(FileList)
+    FileList = dir(DicomDir);
+    if isempty(FileList)
+        return;
+    end
+    FileList = FileList(~[FileList.isdir]);
+    FileList = FileList(~ismember({FileList.name},{'.','..','.DS_Store'}));
+end
+
+
+function SubID = GetSubjectIDFromDicomDir(WorkingDir, InputLayout, DicomDir)
+SubID = '';
+RelativeDir = strrep(DicomDir,[WorkingDir,filesep],'');
+DirParts = strsplit(RelativeDir,filesep);
+if InputLayout == 1
+    if ~isempty(DirParts)
+        SubID = DirParts{1};
+    end
+else
+    if numel(DirParts) >= 2
+        SubID = DirParts{2};
+    end
+end
+
+
+function SeriesName = RemoveSeriesNumberPrefix(SeriesName)
+if iscell(SeriesName)
+    SeriesName = cellfun(@RemoveSeriesNumberPrefix,SeriesName,'UniformOutput',false);
+    return;
+end
+if ~ischar(SeriesName) || isempty(SeriesName)
+    return;
+end
+Token = regexp(SeriesName,'^[0-9]+[_-](.+)$','tokens','once');
+if ~isempty(Token)
+    SeriesName = Token{1};
+end
+
+
+function PrefixNumber = GetSeriesNumberPrefix(SeriesName)
+PrefixNumber = inf;
+if ~ischar(SeriesName) || isempty(SeriesName)
+    return;
+end
+Token = regexp(SeriesName,'^([0-9]+)[_-]','tokens','once');
+if ~isempty(Token)
+    PrefixNumber = str2double(Token{1});
+end
+
+
 
 function [EchoDirs, IsOK, Msg] = GetMultiEchoDirs(hObject, handles, Echo1Dir)
 % GetMultiEchoDirs  Detect multi-echo series set for a functional session.
@@ -5365,17 +5424,14 @@ if isempty(Echo1Dir) || ~ischar(Echo1Dir) || ~exist(Echo1Dir,'dir')
     return;
 end
 
-subID = handles.Cfg.Demo.SubID;
 workingDir = handles.Cfg.WorkingDir;
+subID = GetSubjectIDFromDicomDir(workingDir,handles.Cfg.InputLayout,Echo1Dir);
+if isempty(subID)
+    subID = handles.Cfg.Demo.SubID;
+end
 
 % ---- locate first DICOM file in Echo1Dir ----
-dcmList = dir(fullfile(Echo1Dir,'*.dcm'));
-if isempty(dcmList)
-    tmp = dir(Echo1Dir);
-    tmp = tmp(~[tmp.isdir]);
-    tmp = tmp(~ismember({tmp.name},{'.','..','.DS_Store'}));
-    dcmList = tmp;
-end
+dcmList = GetDicomFileList(Echo1Dir);
 if isempty(dcmList)
     Msg = 'No DICOM files found in the selected series subject directory.';
     return;
@@ -5401,13 +5457,7 @@ if isempty(protoA)
 end
 
 % ---- file count of series A (subject-level) ----
-nFileA = numel(dir(fullfile(Echo1Dir,'*.dcm')));
-if nFileA == 0
-    tmp = dir(Echo1Dir);
-    tmp = tmp(~[tmp.isdir]);
-    tmp = tmp(~ismember({tmp.name},{'.','..','.DS_Store'}));
-    nFileA = numel(tmp);
-end
+nFileA = CountDicomFilesInDir(Echo1Dir);
 if nFileA == 0
     Msg = 'Cannot determine file count of the selected series (subject-level folder).';
     return;
@@ -5415,35 +5465,24 @@ end
 
 % ---- scan all series folders under WorkingDir and test the SAME subject subfolder ----
 if handles.Cfg.InputLayout == 1 % Participant first
-    D = dir([workingDir,filesep,subID]);
+    D = GetValidDirStruct(GetSubjectSeriesBaseDir(workingDir,subID));
 else
-    D = dir(workingDir);
+    D = GetValidDirStruct(workingDir);
 end
-D = D([D.isdir]);
 seriesNames = {D.name};
-seriesNames = seriesNames(~ismember(seriesNames,{'.','..','.DS_Store'}));
 
 candSeries = {};
 candTE = [];
 
 for i = 1:numel(seriesNames)
     sName = seriesNames{i};
-    if handles.Cfg.InputLayout == 1 % Participant first
-        candSubDir = fullfile(workingDir, subID, sName);
-    else
-        candSubDir = fullfile(workingDir, sName, subID);
-    end
+    candSubDir = GetSeriesDicomDir(workingDir,handles.Cfg.InputLayout,subID,sName);
     if ~exist(candSubDir,'dir')
         continue;
     end
 
     % read first dicom header and count DICOM files
-    d = dir(fullfile(candSubDir,'*.dcm'));
-    if isempty(d)
-        tmp = dir(candSubDir);
-        tmp = tmp(~[tmp.isdir]);
-        d = tmp(~ismember({tmp.name},{'.','..','.DS_Store'}));
-    end 
+    d = GetDicomFileList(candSubDir);
     if isempty(d) || numel(d) ~= nFileA % avoid Ref and other aux series
         continue;
     end

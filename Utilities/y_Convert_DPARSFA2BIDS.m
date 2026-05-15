@@ -55,6 +55,7 @@ fclose(fid);
 
 MaxFunSessionNumber=max(Cfg.FunctionalSessionNumber,1);
 FunJSONFileSet=cell(Cfg.SubjectNum,MaxFunSessionNumber);
+FunSBREFJSONFileSet=cell(Cfg.SubjectNum,MaxFunSessionNumber);
 FunMetadataSourceFiles=cell(Cfg.SubjectNum,MaxFunSessionNumber);
 % uMR 5T data includes TI2Img (INV2); use it to MPRAGEise the T1/UNI image.
 IsUMR5T=7==exist([Cfg.WorkingDir,filesep,'TI2Img'],'dir');
@@ -152,12 +153,19 @@ if Cfg.FunctionalSessionNumber<=1
 
         %Dealing with functional data
         if Cfg.FunctionalSessionNumber==1
-            mkdir([OutDir,filesep,SubjectID_BIDS{i},filesep,'func'])
+            OutFuncDir=[OutDir,filesep,SubjectID_BIDS{i},filesep,'func'];
+            mkdir(OutFuncDir)
             [FunFile_IntendedFor,FunJSONFileSet{i,1},FunMetadataSourceFiles{i,1}] = y_CopyFunImgToBIDS(...
                 [Cfg.WorkingDir,filesep,'FunImg',filesep,Cfg.SubjectID{i}], ...
-                [OutDir,filesep,SubjectID_BIDS{i},filesep,'func'], ...
+                OutFuncDir, ...
                 'func', ...
                 [SubjectID_BIDS{i},'_task-rest']);
+            if 7==exist([Cfg.WorkingDir,filesep,'FunSBREFImg'],'dir')
+                FunSBREFJSONFileSet{i,1}=y_CopyFunSBREFImgToBIDS(...
+                    [Cfg.WorkingDir,filesep,'FunSBREFImg',filesep,Cfg.SubjectID{i}], ...
+                    OutFuncDir, ...
+                    [SubjectID_BIDS{i},'_task-rest']);
+            end
             
             %Dealing with Fun FieldMap data
             FieldMapMeasures={'PhaseDiff','Magnitude1','Magnitude2','Phase1','Phase2','Magnitude','FieldMap'};
@@ -410,12 +418,19 @@ if Cfg.FunctionalSessionNumber>=2
     for i=1:length(SubjectID_BIDS)
         FunFile_IntendedFor=[];
         for iFunSession=1:Cfg.FunctionalSessionNumber
-            mkdir([OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFunSession),filesep,'func'])
+            OutFuncDir=[OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFunSession),filesep,'func'];
+            mkdir(OutFuncDir)
             [FunFile_IntendedForTemp,FunJSONFileSet{i,iFunSession},FunMetadataSourceFiles{i,iFunSession}] = y_CopyFunImgToBIDS(...
                 [Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunImg',filesep,Cfg.SubjectID{i}], ...
-                [OutDir,filesep,SubjectID_BIDS{i},filesep,'ses-',num2str(iFunSession),filesep,'func'], ...
+                OutFuncDir, ...
                 ['ses-',num2str(iFunSession),'/func'], ...
                 [SubjectID_BIDS{i},'_ses-',num2str(iFunSession),'_task-rest']);
+            if 7==exist([Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunSBREFImg'],'dir')
+                FunSBREFJSONFileSet{i,iFunSession}=y_CopyFunSBREFImgToBIDS(...
+                    [Cfg.WorkingDir,filesep,FunSessionPrefixSet{iFunSession},'FunSBREFImg',filesep,Cfg.SubjectID{i}], ...
+                    OutFuncDir, ...
+                    [SubjectID_BIDS{i},'_ses-',num2str(iFunSession),'_task-rest']);
+            end
             FunFile_IntendedFor=[FunFile_IntendedFor,FunFile_IntendedForTemp];
         end
         
@@ -766,6 +781,7 @@ for iFunSession=1:Cfg.FunctionalSessionNumber
                 spm_jsonwrite(JSONFile,JSON_Exist);
             end
         end
+        y_FillSBREFJSONFiles(FunSBREFJSONFileSet{i,iFunSession}, TR);
     end
 end
 
@@ -939,27 +955,74 @@ if 2==exist(File,'file')
 end
 
 
+function y_FillSBREFJSONFiles(JSONFileSet, TR)
+if isempty(JSONFileSet)
+    return
+end
+
+for iJSONFile=1:length(JSONFileSet)
+    JSONFile=JSONFileSet{iJSONFile};
+    clear JSON
+    JSON.TaskName='REST';
+    if TR>0
+        JSON.RepetitionTime=TR;
+    end
+
+    if ~exist(JSONFile,'file')
+        spm_jsonwrite(JSONFile,JSON);
+    else
+        JSON_Exist = spm_jsonread(JSONFile);
+        NeedWrite=0;
+        if ~isfield(JSON_Exist,'TaskName')
+            JSON_Exist.TaskName=JSON.TaskName;
+            NeedWrite=1;
+        end
+        if ~isfield(JSON_Exist,'RepetitionTime') && ~isfield(JSON_Exist,'VolumeTiming') && isfield(JSON,'RepetitionTime')
+            JSON_Exist.RepetitionTime=JSON.RepetitionTime;
+            NeedWrite=1;
+        end
+        if NeedWrite
+            spm_jsonwrite(JSONFile,JSON_Exist);
+        end
+    end
+end
+
+
 function [FunFile_IntendedFor, FunJSONFiles, MetadataSourceFiles] = y_CopyFunImgToBIDS(FunDir, OutFuncDir, RelativeFuncDir, BIDSBaseName)
+[FunFile_IntendedFor, FunJSONFiles, MetadataSourceFiles] = y_CopyFunImgToBIDSWithSuffix(FunDir, OutFuncDir, RelativeFuncDir, BIDSBaseName, 'bold', 1);
+
+
+function SBREFJSONFiles = y_CopyFunSBREFImgToBIDS(FunSBREFDir, OutFuncDir, BIDSBaseName)
+[~, SBREFJSONFiles, ~] = y_CopyFunImgToBIDSWithSuffix(FunSBREFDir, OutFuncDir, '', BIDSBaseName, 'sbref', 0);
+
+
+function [FunFile_IntendedFor, FunJSONFiles, MetadataSourceFiles] = y_CopyFunImgToBIDSWithSuffix(FunDir, OutFuncDir, RelativeFuncDir, BIDSBaseName, Suffix, IsRequired)
 [EchoGroups, IsMultiEcho] = y_GetFunImgEchoGroups(FunDir);
 
 FunFile_IntendedFor={};
 FunJSONFiles={};
 MetadataSourceFiles={};
 if isempty(EchoGroups)
-    error(['No functional image is found in: ',FunDir]);
+    if IsRequired
+        error(['No functional image is found in: ',FunDir]);
+    else
+        return
+    end
 end
 
 MetadataSourceFiles=EchoGroups(1).Files;
 for iEcho=1:length(EchoGroups)
     if IsMultiEcho
-        OutputBaseName=[BIDSBaseName,'_echo-',num2str(EchoGroups(iEcho).EchoIndex),'_bold'];
+        OutputBaseName=[BIDSBaseName,'_echo-',num2str(EchoGroups(iEcho).EchoIndex),'_',Suffix];
     else
-        OutputBaseName=[BIDSBaseName,'_bold'];
+        OutputBaseName=[BIDSBaseName,'_',Suffix];
     end
 
     OutputImgPathBase=[OutFuncDir,filesep,OutputBaseName];
     OutputExt=y_CopyFunImgGroup(EchoGroups(iEcho).Files,OutputImgPathBase);
-    FunFile_IntendedFor=[FunFile_IntendedFor,{[RelativeFuncDir,'/',OutputBaseName,OutputExt]}];
+    if ~isempty(RelativeFuncDir)
+        FunFile_IntendedFor=[FunFile_IntendedFor,{[RelativeFuncDir,'/',OutputBaseName,OutputExt]}];
+    end
 
     OutputJSONFile=[OutFuncDir,filesep,OutputBaseName,'.json'];
     FunJSONFiles=[FunJSONFiles,{OutputJSONFile}];
