@@ -186,32 +186,25 @@ if (Cfg.Isqsiprep==1)
 
 
     %Chao-Gan Yan, 20260125. Convert freesurfer aparcaseg files to qsiprep ACPC space
+    local_prepare_session_anat_aliases(fullfile(Cfg.WorkingDir,'qsiprep'), Cfg.SubjectID);
+    local_prepare_session_anat_aliases(fullfile(Cfg.WorkingDir,'fmriprep'), Cfg.SubjectID);
+    local_prepare_session_dwi_aliases(fullfile(Cfg.WorkingDir,'qsiprep'), Cfg.SubjectID);
+    AparcasegSourceFileSet = local_prepare_t1w_aparcaseg_aliases(fullfile(Cfg.WorkingDir,'Results','AnatVolu','T1wSpace'), Cfg.SubjectID);
+    HasAparcasegSource = cellfun(@(FileName) ~isempty(FileName) && (2==exist(FileName,'file')), AparcasegSourceFileSet);
 
-    AparcasegFile=[Cfg.WorkingDir,filesep,'Results',filesep,'AnatVolu',filesep,'T1wSpace',filesep,Cfg.SubjectID{1},filesep,Cfg.SubjectID{1},'_space-ACPC_desc-aparcaseg.nii.gz'];
-    if (2==exist(AparcasegFile,'file'))
-        RefFile=[Cfg.WorkingDir,filesep,'qsiprep',filesep,Cfg.SubjectID{1},filesep,'dwi',filesep,Cfg.SubjectID{1},'_space-ACPC_desc-preproc_dwi.b'];
-        if (2==exist(RefFile,'file'))
-            Command = sprintf('%s cgyan/qsiprep bash -lc ''parallel --quote -j 1 bash -lc "antsRegistrationSyNQuick.sh -d 3 -f %s/qsiprep/{1}/anat/{1}_space-ACPC_desc-preproc_T1w.nii.gz -m %s/fmriprep/{1}/anat/{1}_desc-preproc_T1w.nii.gz -t a -o %s/Results/AnatVolu/T1wSpace/{1}/{1}_fmriprepT1_to_qsiprepACPC_"',CommandInit,WorkingDir,WorkingDir,WorkingDir);
-            Command = sprintf('%s ::: %s''', Command, SubjectIDString);
-            fprintf('Calculate T1 -> ACPC, please wait...\n');
-            system(Command);
-
-            Command = sprintf('%s antsApplyTransforms -d 3 -i %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-T1w_desc-aparcaseg.nii.gz -r %s/qsiprep/{1}/anat/{1}_space-ACPC_desc-preproc_T1w.nii.gz -o %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-ACPC_desc-aparcaseg.nii.gz -n MultiLabel -t %s/Results/AnatVolu/T1wSpace/{1}/{1}_fmriprepT1_to_qsiprepACPC_0GenericAffine.mat',CommandParallelQsiprep,WorkingDir,WorkingDir,WorkingDir,WorkingDir);
-            Command = sprintf('%s ::: %s', Command, SubjectIDString);
-            fprintf('Transform space-T1w_desc-aparcaseg to _space-ACPC_desc-aparcaseg, please wait...\n');
-            system(Command);
-        else
-
-            Command = sprintf('%s cgyan/qsiprep bash -lc ''parallel --quote -j 1 bash -lc "antsRegistrationSyNQuick.sh -d 3 -f %s/qsiprep/{1}/ses-1/anat/{1}_ses-1_space-ACPC_desc-preproc_T1w.nii.gz -m %s/fmriprep/{1}/ses-1/anat/{1}_ses-1_desc-preproc_T1w.nii.gz -t a -o %s/Results/AnatVolu/T1wSpace/{1}/{1}_fmriprepT1_to_qsiprepACPC_"',CommandInit,WorkingDir,WorkingDir,WorkingDir);
-            Command = sprintf('%s ::: %s''', Command, SubjectIDString);
-            fprintf('Calculate T1 -> ACPC, please wait...\n');
-            system(Command);
-
-            Command = sprintf('%s antsApplyTransforms -d 3 -i %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-T1w_desc-aparcaseg.nii.gz -r %s/qsiprep/{1}/ses-1/anat/{1}_ses-1_space-ACPC_desc-preproc_T1w.nii.gz -o %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-ACPC_desc-aparcaseg.nii.gz -n MultiLabel -t %s/Results/AnatVolu/T1wSpace/{1}/{1}_fmriprepT1_to_qsiprepACPC_0GenericAffine.mat',CommandParallelQsiprep,WorkingDir,WorkingDir,WorkingDir,WorkingDir);
-            Command = sprintf('%s ::: %s', Command, SubjectIDString);
-            fprintf('Transform space-T1w_desc-aparcaseg to _space-ACPC_desc-aparcaseg, please wait...\n');
-            system(Command);
+    if any(HasAparcasegSource)
+        if ~all(HasAparcasegSource)
+            error('T1w aparcaseg source file does not exist for: %s', strjoin(Cfg.SubjectID(~HasAparcasegSource), ', '));
         end
+        Command = sprintf('%s cgyan/qsiprep bash -lc ''parallel --quote -j 1 bash -lc "antsRegistrationSyNQuick.sh -d 3 -f %s/qsiprep/{1}/anat/{1}_space-ACPC_desc-preproc_T1w.nii.gz -m %s/fmriprep/{1}/anat/{1}_desc-preproc_T1w.nii.gz -t a -o %s/Results/AnatVolu/T1wSpace/{1}/{1}_fmriprepT1_to_qsiprepACPC_"',CommandInit,WorkingDir,WorkingDir,WorkingDir);
+        Command = sprintf('%s ::: %s''', Command, SubjectIDString);
+        fprintf('Calculate T1 -> ACPC, please wait...\n');
+        system(Command);
+
+        Command = sprintf('%s antsApplyTransforms -d 3 -i %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-T1w_desc-aparcaseg.nii.gz -r %s/qsiprep/{1}/anat/{1}_space-ACPC_desc-preproc_T1w.nii.gz -o %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-ACPC_desc-aparcaseg.nii.gz -n MultiLabel -t %s/Results/AnatVolu/T1wSpace/{1}/{1}_fmriprepT1_to_qsiprepACPC_0GenericAffine.mat',CommandParallelQsiprep,WorkingDir,WorkingDir,WorkingDir,WorkingDir);
+        Command = sprintf('%s ::: %s', Command, SubjectIDString);
+        fprintf('Transform space-T1w_desc-aparcaseg to _space-ACPC_desc-aparcaseg, please wait...\n');
+        system(Command);
     end
 
 
@@ -223,6 +216,7 @@ end
 
 % Calculate DWI Tensor Metrics
 if (Cfg.IsCalTensorMetrics==1)
+    local_prepare_session_dwi_aliases(fullfile(Cfg.WorkingDir,'qsiprep'), Cfg.SubjectID);
 
     %dwi2tensor -grad /data/qsiprep/sub-Sub001/dwi/sub-Sub001_space-ACPC_desc-preproc_dwi.b -mask /data/qsiprep/sub-Sub001/dwi/sub-Sub001_space-ACPC_desc-brain_mask.nii.gz /data/qsiprep/sub-Sub001/dwi/sub-Sub001_space-ACPC_desc-preproc_dwi.nii.gz /data/Tensor/Tensor/sub-Sub001_space-ACPC_desc-preproc_dwitensor.nii.gz
     mkdir([Cfg.WorkingDir,filesep,'Results',filesep,'DwiVolu',filesep,'TensorMetrics',filesep,'Tensor']);
@@ -350,12 +344,19 @@ if (Cfg.Isqsirecon==1)
         %Command = sprintf('%s --output-resolution %g', Command, Cfg.OutputResolution);
 
         if ~isempty(Cfg.FreesurferInput)
+            Cfg.FreeSurferSubjectID = local_prepare_qsirecon_freesurfer_aliases(Cfg.FreesurferInput, Cfg.SubjectID);
 
-            % First check if lh.pial exist. YAN Chao-Gan, 220219.
-            if exist([Cfg.FreesurferInput,filesep,Cfg.SubjectID{1},filesep,'surf',filesep,'lh.pial.T1'],'file') && ~exist([Cfg.FreesurferInput,filesep,Cfg.SubjectID{1},filesep,'surf',filesep,'lh.pial'],'file')
-                for i=1:Cfg.SubjectNum
-                    copyfile([Cfg.FreesurferInput,filesep,Cfg.SubjectID{i},filesep,'surf',filesep,'lh.pial.T1'],[Cfg.FreesurferInput,filesep,Cfg.SubjectID{i},filesep,'surf',filesep,'lh.pial'])
-                    copyfile([Cfg.FreesurferInput,filesep,Cfg.SubjectID{i},filesep,'surf',filesep,'rh.pial.T1'],[Cfg.FreesurferInput,filesep,Cfg.SubjectID{i},filesep,'surf',filesep,'rh.pial'])
+            % Make FreeSurfer subject IDs consistent with BIDS participant labels for qsirecon.
+            for i=1:Cfg.SubjectNum
+                LeftPialT1 = fullfile(Cfg.FreesurferInput, Cfg.SubjectID{i}, 'surf', 'lh.pial.T1');
+                LeftPial = fullfile(Cfg.FreesurferInput, Cfg.SubjectID{i}, 'surf', 'lh.pial');
+                RightPialT1 = fullfile(Cfg.FreesurferInput, Cfg.SubjectID{i}, 'surf', 'rh.pial.T1');
+                RightPial = fullfile(Cfg.FreesurferInput, Cfg.SubjectID{i}, 'surf', 'rh.pial');
+                if exist(LeftPialT1,'file') && ~exist(LeftPial,'file')
+                    copyfile(LeftPialT1, LeftPial);
+                end
+                if exist(RightPialT1,'file') && ~exist(RightPial,'file')
+                    copyfile(RightPialT1, RightPial);
                 end
             end
 
@@ -415,6 +416,9 @@ end
 
 % Process ROI Masks
 if ~isempty(Cfg.ROIDef)
+    local_prepare_session_anat_aliases(fullfile(Cfg.WorkingDir,'qsiprep'), Cfg.SubjectID);
+    local_prepare_session_anat_aliases(fullfile(Cfg.WorkingDir,'fmriprep'), Cfg.SubjectID);
+    local_prepare_session_dwi_aliases(fullfile(Cfg.WorkingDir,'qsiprep'), Cfg.SubjectID);
 
     if ~(7==exist([Cfg.WorkingDir,filesep,'Masks',filesep, 'MasksForDwi',filesep, 'Masks_DwiSpace'],'dir'))
         mkdir([Cfg.WorkingDir,filesep,'Masks',filesep, 'MasksForDwi',filesep, 'Masks_DwiSpace']);
@@ -440,13 +444,7 @@ if ~isempty(Cfg.ROIDef)
         if 1% Cfg.IsWarpMasksIntoIndividualSpace==1
             %Need to warp masks
 
-            RefFile=[Cfg.WorkingDir,filesep,'qsiprep',filesep,Cfg.SubjectID{i},filesep,'dwi',filesep,Cfg.SubjectID{i},'_space-ACPC_dwiref.nii.gz'];
-            if (2==exist(RefFile,'file'))
-                TransformFile=[Cfg.WorkingDir,filesep,'qsiprep',filesep,Cfg.SubjectID{i},filesep,'anat',filesep,Cfg.SubjectID{i},'_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5'];
-            else
-                RefFile=[Cfg.WorkingDir,filesep,'qsiprep',filesep,Cfg.SubjectID{i},filesep,'ses-1',filesep,'dwi',filesep,Cfg.SubjectID{i},'_ses-1_space-ACPC_dwiref.nii.gz'];
-                TransformFile=[Cfg.WorkingDir,filesep,'qsiprep',filesep,Cfg.SubjectID{i},filesep,'ses-1',filesep,'anat',filesep,Cfg.SubjectID{i},'_ses-1_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5'];
-            end
+            [RefFile, TransformFile] = local_resolve_qsiprep_mni_to_acpc_files(Cfg.WorkingDir, Cfg.SubjectID{i});
             [RefData,RefVox,RefHeader]=y_ReadRPI(RefFile,1);
             
             Interpolation='MultiLabel';
@@ -1310,4 +1308,405 @@ end
 
 
 fprintf(['\nCongratulations, the running of DPABIFiber is done!!! :)\n\n']);
+
+end
+
+
+
+function local_prepare_session_anat_aliases(DerivativesDir, SubjectIDCell)
+if isempty(DerivativesDir) || ~exist(DerivativesDir,'dir')
+    return;
+end
+
+for iSubject=1:length(SubjectIDCell)
+    SubjectDir = fullfile(DerivativesDir, SubjectIDCell{iSubject});
+    SubjectAnatDir = fullfile(SubjectDir, 'anat');
+    SessionDir = fullfile(SubjectDir, 'ses-1');
+    SessionAnatDir = fullfile(SessionDir, 'anat');
+
+    if exist(SubjectAnatDir,'dir') && ~exist(SessionAnatDir,'dir')
+        if ~exist(SessionDir,'dir')
+            mkdir(SessionDir);
+        end
+        local_create_directory_alias(SessionAnatDir, SubjectAnatDir, fullfile('..','anat'));
+    elseif ~exist(SubjectAnatDir,'dir') && exist(SessionAnatDir,'dir')
+        local_create_directory_alias(SubjectAnatDir, SessionAnatDir, fullfile('ses-1','anat'));
+    end
+
+    if exist(SubjectAnatDir,'dir')
+        local_prepare_session_anat_file_aliases(SubjectAnatDir, SubjectIDCell{iSubject}, 'ses-1');
+    elseif exist(SessionAnatDir,'dir')
+        local_prepare_session_anat_file_aliases(SessionAnatDir, SubjectIDCell{iSubject}, 'ses-1');
+    end
+end
+end
+
+
+
+function local_prepare_session_anat_file_aliases(AnatDir, SubjectID, SessionLabel)
+FileSuffixCell = {
+    '_desc-preproc_T1w.nii.gz'
+    '_space-ACPC_desc-preproc_T1w.nii.gz'
+    '_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5'
+    '_from-ACPC_to-MNI152NLin2009cAsym_mode-image_xfm.h5'
+    };
+
+for iSuffix = 1:length(FileSuffixCell)
+    SessionlessFile = fullfile(AnatDir, [SubjectID, FileSuffixCell{iSuffix}]);
+    SessionFile = fullfile(AnatDir, [SubjectID, '_', SessionLabel, FileSuffixCell{iSuffix}]);
+
+    if exist(SessionlessFile,'file') && ~exist(SessionFile,'file')
+        local_create_file_alias(SessionFile, SessionlessFile, [SubjectID, FileSuffixCell{iSuffix}]);
+    elseif ~exist(SessionlessFile,'file') && exist(SessionFile,'file')
+        local_create_file_alias(SessionlessFile, SessionFile, [SubjectID, '_', SessionLabel, FileSuffixCell{iSuffix}]);
+    end
+end
+end
+
+
+
+function AparcasegSourceFileSet = local_prepare_t1w_aparcaseg_aliases(T1wSpaceDir, SubjectIDCell)
+AparcasegSourceFileSet = cell(length(SubjectIDCell),1);
+
+if isempty(T1wSpaceDir) || ~exist(T1wSpaceDir,'dir')
+    return;
+end
+
+for iSubject=1:length(SubjectIDCell)
+    SubjectDir = fullfile(T1wSpaceDir, SubjectIDCell{iSubject});
+    if ~exist(SubjectDir,'dir')
+        continue;
+    end
+
+    TargetFile = fullfile(SubjectDir, [SubjectIDCell{iSubject}, '_space-T1w_desc-aparcaseg.nii.gz']);
+    if exist(TargetFile,'file')
+        AparcasegSourceFileSet{iSubject} = TargetFile;
+        continue;
+    end
+
+    CandidateFile = local_resolve_t1w_aparcaseg_source_file(SubjectDir, SubjectIDCell{iSubject});
+    if isempty(CandidateFile)
+        continue;
+    end
+
+    if local_is_nifti_gz_file(CandidateFile)
+        local_create_file_alias(TargetFile, CandidateFile, local_basename(CandidateFile));
+    elseif local_is_nifti_file(CandidateFile)
+        TempTarget = fullfile(SubjectDir, [SubjectIDCell{iSubject}, '_space-T1w_desc-aparcaseg.nii']);
+        IsTemporaryCopy = ~strcmpi(CandidateFile, TempTarget);
+        if IsTemporaryCopy
+            copyfile(CandidateFile, TempTarget);
+        end
+        gzip(TempTarget, SubjectDir);
+        if IsTemporaryCopy
+            delete(TempTarget);
+        end
+    end
+
+    if exist(TargetFile,'file')
+        AparcasegSourceFileSet{iSubject} = TargetFile;
+    end
+end
+end
+
+
+
+function CandidateFile = local_resolve_t1w_aparcaseg_source_file(SubjectDir, SubjectID)
+CandidateFile = '';
+CandidateFileSet = {
+    fullfile(SubjectDir, [SubjectID, '_space-T1w_desc-aparcaseg.nii.gz'])
+    fullfile(SubjectDir, [SubjectID, '_space-T1w_desc-aparcaseg.nii'])
+    fullfile(SubjectDir, [SubjectID, '_desc-aparcaseg_dseg.nii.gz'])
+    fullfile(SubjectDir, [SubjectID, '_desc-aparcaseg_dseg.nii'])
+    fullfile(SubjectDir, [SubjectID, '_ses-1_space-T1w_desc-aparcaseg.nii.gz'])
+    fullfile(SubjectDir, [SubjectID, '_ses-1_space-T1w_desc-aparcaseg.nii'])
+    fullfile(SubjectDir, [SubjectID, '_ses-1_desc-aparcaseg_dseg.nii.gz'])
+    fullfile(SubjectDir, [SubjectID, '_ses-1_desc-aparcaseg_dseg.nii'])
+    };
+CandidateFile = local_pick_existing_file(CandidateFileSet);
+if ~isempty(CandidateFile)
+    return;
+end
+
+DirFile = dir(fullfile(SubjectDir, [SubjectID, '*desc-aparcaseg*.nii*']));
+for iFile = 1:length(DirFile)
+    if ~DirFile(iFile).isdir
+        CandidateFile = fullfile(SubjectDir, DirFile(iFile).name);
+        return;
+    end
+end
+end
+
+
+
+function local_prepare_session_dwi_aliases(DerivativesDir, SubjectIDCell)
+if isempty(DerivativesDir) || ~exist(DerivativesDir,'dir')
+    return;
+end
+
+for iSubject=1:length(SubjectIDCell)
+    SubjectDir = fullfile(DerivativesDir, SubjectIDCell{iSubject});
+    SubjectDwiDir = fullfile(SubjectDir, 'dwi');
+    SessionDir = fullfile(SubjectDir, 'ses-1');
+    SessionDwiDir = fullfile(SessionDir, 'dwi');
+
+    if exist(SubjectDwiDir,'dir') && ~exist(SessionDwiDir,'dir')
+        if ~exist(SessionDir,'dir')
+            mkdir(SessionDir);
+        end
+        local_create_directory_alias(SessionDwiDir, SubjectDwiDir, fullfile('..','dwi'));
+    elseif ~exist(SubjectDwiDir,'dir') && exist(SessionDwiDir,'dir')
+        local_create_directory_alias(SubjectDwiDir, SessionDwiDir, fullfile('ses-1','dwi'));
+    end
+
+    if exist(SubjectDwiDir,'dir')
+        local_prepare_session_dwi_file_aliases(SubjectDwiDir, SubjectIDCell{iSubject}, 'ses-1');
+    elseif exist(SessionDwiDir,'dir')
+        local_prepare_session_dwi_file_aliases(SessionDwiDir, SubjectIDCell{iSubject}, 'ses-1');
+    end
+end
+end
+
+
+
+function local_prepare_session_dwi_file_aliases(DwiDir, SubjectID, SessionLabel)
+FileSuffixCell = {
+    '_space-ACPC_desc-preproc_dwi.b'
+    '_space-ACPC_desc-preproc_dwi.nii.gz'
+    '_space-ACPC_desc-brain_mask.nii.gz'
+    '_space-ACPC_dwiref.nii.gz'
+    };
+
+for iSuffix = 1:length(FileSuffixCell)
+    SessionlessFile = fullfile(DwiDir, [SubjectID, FileSuffixCell{iSuffix}]);
+    SessionFile = fullfile(DwiDir, [SubjectID, '_', SessionLabel, FileSuffixCell{iSuffix}]);
+
+    if exist(SessionlessFile,'file') && ~exist(SessionFile,'file')
+        local_create_file_alias(SessionFile, SessionlessFile, [SubjectID, FileSuffixCell{iSuffix}]);
+    elseif ~exist(SessionlessFile,'file') && exist(SessionFile,'file')
+        local_create_file_alias(SessionlessFile, SessionFile, [SubjectID, '_', SessionLabel, FileSuffixCell{iSuffix}]);
+    end
+end
+end
+
+
+
+function [RefFile, TransformFile] = local_resolve_qsiprep_mni_to_acpc_files(WorkingDir, SubjectID)
+QsiprepSubjectDir = fullfile(WorkingDir, 'qsiprep', SubjectID);
+SessionLabel = '';
+
+RefCandidates = {
+    fullfile(QsiprepSubjectDir, 'dwi', [SubjectID, '_space-ACPC_dwiref.nii.gz'])
+    fullfile(QsiprepSubjectDir, 'ses-1', 'dwi', [SubjectID, '_ses-1_space-ACPC_dwiref.nii.gz'])
+    };
+RefFile = local_pick_existing_file(RefCandidates);
+
+if isempty(RefFile)
+    DirSession = dir(fullfile(QsiprepSubjectDir, 'ses-*'));
+    DirSession = DirSession([DirSession.isdir]);
+    for iSession = 1:length(DirSession)
+        CandidateFile = fullfile(QsiprepSubjectDir, DirSession(iSession).name, 'dwi', [SubjectID, '_', DirSession(iSession).name, '_space-ACPC_dwiref.nii.gz']);
+        if exist(CandidateFile,'file')
+            RefFile = CandidateFile;
+            SessionLabel = DirSession(iSession).name;
+            break;
+        end
+    end
+else
+    SessionLabel = local_get_session_label_from_bids_file(RefFile, SubjectID);
+end
+
+if isempty(RefFile)
+    error('DWI reference file does not exist for %s under %s.', SubjectID, QsiprepSubjectDir);
+end
+
+TransformCandidates = {};
+if ~isempty(SessionLabel)
+    TransformCandidates = [TransformCandidates; {
+        fullfile(QsiprepSubjectDir, SessionLabel, 'anat', [SubjectID, '_', SessionLabel, '_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5'])
+        fullfile(QsiprepSubjectDir, 'anat', [SubjectID, '_', SessionLabel, '_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5'])
+        }];
+end
+
+TransformCandidates = [TransformCandidates; {
+    fullfile(QsiprepSubjectDir, 'anat', [SubjectID, '_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5'])
+    fullfile(QsiprepSubjectDir, 'ses-1', 'anat', [SubjectID, '_ses-1_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5'])
+    fullfile(QsiprepSubjectDir, 'anat', [SubjectID, '_ses-1_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5'])
+    }];
+
+if isempty(SessionLabel)
+    DirSession = dir(fullfile(QsiprepSubjectDir, 'ses-*'));
+    DirSession = DirSession([DirSession.isdir]);
+    for iSession = 1:length(DirSession)
+        TransformCandidates = [TransformCandidates; {
+            fullfile(QsiprepSubjectDir, DirSession(iSession).name, 'anat', [SubjectID, '_', DirSession(iSession).name, '_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5'])
+            fullfile(QsiprepSubjectDir, 'anat', [SubjectID, '_', DirSession(iSession).name, '_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5'])
+            }];
+    end
+end
+
+TransformFile = local_pick_existing_file(TransformCandidates);
+if isempty(TransformFile)
+    error('Transform file does not exist for %s under %s.', SubjectID, QsiprepSubjectDir);
+end
+end
+
+
+
+function SessionLabel = local_get_session_label_from_bids_file(FileName, SubjectID)
+SessionLabel = '';
+Expression = [regexptranslate('escape', SubjectID), '_(ses-[^_]+)_'];
+Tokens = regexp(FileName, Expression, 'tokens', 'once');
+if ~isempty(Tokens)
+    SessionLabel = Tokens{1};
+end
+end
+
+
+
+function ExistingFile = local_pick_existing_file(FileCell)
+ExistingFile = '';
+for iFile=1:length(FileCell)
+    if ~isempty(FileCell{iFile}) && exist(FileCell{iFile},'file')
+        ExistingFile = FileCell{iFile};
+        return;
+    end
+end
+end
+
+
+
+function local_create_directory_alias(TargetDir, SourceDir, UnixRelativeSourceDir)
+if exist(TargetDir,'dir')
+    return;
+end
+
+ParentDir = fileparts(TargetDir);
+if ~exist(ParentDir,'dir')
+    mkdir(ParentDir);
+end
+
+if ispc
+    Command = sprintf('cmd /c mklink /J "%s" "%s"', TargetDir, SourceDir);
+else
+    Command = sprintf('ln -s "%s" "%s"', UnixRelativeSourceDir, TargetDir);
+end
+[Status, Output] = system(Command);
+
+if (Status~=0) && ~exist(TargetDir,'dir')
+    error('Failed to create directory alias from %s to %s: %s', TargetDir, SourceDir, Output);
+end
+end
+
+
+
+function local_create_file_alias(TargetFile, SourceFile, UnixRelativeSourceFile)
+if exist(TargetFile,'file')
+    return;
+end
+
+if ispc
+    [Status, Output] = copyfile(SourceFile, TargetFile);
+    if Status == 0
+        error('Failed to create file alias from %s to %s: %s', TargetFile, SourceFile, Output);
+    end
+else
+    Command = sprintf('ln -s "%s" "%s"', UnixRelativeSourceFile, TargetFile);
+    [Status, Output] = system(Command);
+    if (Status~=0) && ~exist(TargetFile,'file')
+        error('Failed to create file alias from %s to %s: %s', TargetFile, SourceFile, Output);
+    end
+end
+end
+
+
+
+function IsNiftiGz = local_is_nifti_gz_file(FileName)
+IsNiftiGz = (length(FileName) >= 7) && strcmpi(FileName(end-6:end), '.nii.gz');
+end
+
+
+
+function IsNifti = local_is_nifti_file(FileName)
+IsNifti = (length(FileName) >= 4) && strcmpi(FileName(end-3:end), '.nii');
+end
+
+
+
+function Name = local_basename(FileName)
+[~, Name, Ext] = fileparts(FileName);
+if strcmpi(Ext,'.gz')
+    [~, Name2, Ext2] = fileparts(Name);
+    Name = [Name2, Ext2, Ext];
+else
+    Name = [Name, Ext];
+end
+end
+
+
+
+function FreeSurferSubjectID = local_prepare_qsirecon_freesurfer_aliases(FreesurferInput, SubjectIDCell)
+FreeSurferSubjectID = cell(length(SubjectIDCell),1);
+
+if isempty(FreesurferInput) || ~exist(FreesurferInput,'dir')
+    return;
+end
+
+for iSubject=1:length(SubjectIDCell)
+    FreeSurferSubjectID{iSubject} = local_resolve_freesurfer_subject_id(FreesurferInput, SubjectIDCell{iSubject});
+    if isempty(FreeSurferSubjectID{iSubject})
+        continue;
+    end
+
+    if ~strcmpi(FreeSurferSubjectID{iSubject}, SubjectIDCell{iSubject}) && ~exist(fullfile(FreesurferInput, SubjectIDCell{iSubject}),'dir')
+        local_create_freesurfer_subject_alias(FreesurferInput, FreeSurferSubjectID{iSubject}, SubjectIDCell{iSubject});
+    end
+end
+end
+
+
+
+function FreeSurferSubjectID = local_resolve_freesurfer_subject_id(FreesurferInput, SubjectID)
+FreeSurferSubjectID = '';
+
+if exist(fullfile(FreesurferInput, SubjectID),'dir')
+    FreeSurferSubjectID = SubjectID;
+    return;
+end
+
+if exist(fullfile(FreesurferInput, [SubjectID, '_ses-1']),'dir')
+    FreeSurferSubjectID = [SubjectID, '_ses-1'];
+    return;
+end
+
+DirFS = dir(fullfile(FreesurferInput, [SubjectID, '_ses-*']));
+DirFS = DirFS([DirFS.isdir]);
+if isempty(DirFS)
+    return;
+end
+
+FreeSurferSubjectID = DirFS(1).name;
+end
+
+
+
+function local_create_freesurfer_subject_alias(FreesurferInput, SourceSubjectID, TargetSubjectID)
+SourceDir = fullfile(FreesurferInput, SourceSubjectID);
+TargetDir = fullfile(FreesurferInput, TargetSubjectID);
+
+if exist(TargetDir,'dir')
+    return;
+end
+
+if ispc
+    Command = sprintf('cmd /c mklink /J "%s" "%s"', TargetDir, SourceDir);
+else
+    Command = sprintf('ln -s "%s" "%s"', SourceSubjectID, TargetDir);
+end
+[Status, Output] = system(Command);
+
+if (Status~=0) && ~exist(TargetDir,'dir')
+    error('Failed to create FreeSurfer subject alias from %s to %s: %s', TargetSubjectID, SourceSubjectID, Output);
+end
+end
 

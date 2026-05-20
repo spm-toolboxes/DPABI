@@ -180,12 +180,19 @@ if ~isempty(NeedReRunID)
     %Command = sprintf('%s --output-resolution %g', Command, Cfg.OutputResolution);
 
     if ~isempty(Cfg.FreesurferInput)
+        local_prepare_qsirecon_freesurfer_aliases(Cfg.FreesurferInput, NeedReRunID);
 
-        % First check if lh.pial exist. YAN Chao-Gan, 220219.
-        if exist([Cfg.FreesurferInput,filesep,Cfg.SubjectID{1},filesep,'surf',filesep,'lh.pial.T1'],'file') && ~exist([Cfg.FreesurferInput,filesep,Cfg.SubjectID{1},filesep,'surf',filesep,'lh.pial'],'file')
-            for i=1:Cfg.SubjectNum
-                copyfile([Cfg.FreesurferInput,filesep,Cfg.SubjectID{i},filesep,'surf',filesep,'lh.pial.T1'],[Cfg.FreesurferInput,filesep,Cfg.SubjectID{i},filesep,'surf',filesep,'lh.pial'])
-                copyfile([Cfg.FreesurferInput,filesep,Cfg.SubjectID{i},filesep,'surf',filesep,'rh.pial.T1'],[Cfg.FreesurferInput,filesep,Cfg.SubjectID{i},filesep,'surf',filesep,'rh.pial'])
+        % Make FreeSurfer subject IDs consistent with BIDS participant labels for qsirecon.
+        for i=1:length(NeedReRunID)
+            LeftPialT1 = fullfile(Cfg.FreesurferInput, NeedReRunID{i}, 'surf', 'lh.pial.T1');
+            LeftPial = fullfile(Cfg.FreesurferInput, NeedReRunID{i}, 'surf', 'lh.pial');
+            RightPialT1 = fullfile(Cfg.FreesurferInput, NeedReRunID{i}, 'surf', 'rh.pial.T1');
+            RightPial = fullfile(Cfg.FreesurferInput, NeedReRunID{i}, 'surf', 'rh.pial');
+            if exist(LeftPialT1,'file') && ~exist(LeftPial,'file')
+                copyfile(LeftPialT1, LeftPial);
+            end
+            if exist(RightPialT1,'file') && ~exist(RightPial,'file')
+                copyfile(RightPialT1, RightPial);
             end
         end
 
@@ -268,6 +275,8 @@ if ~isempty(NeedReRunID)
 
 end
 
+end
+
 
 
 function HasFailedLogs = CheckFailedLogs(SubDir)
@@ -284,6 +293,7 @@ if exist(fullfile(SubDir,'log'))
             end
         end
     end
+end
 end
 
 
@@ -302,6 +312,72 @@ if length(DirFiles_tck)==0
         end
     end
 end
+end
 
 
+
+function FreeSurferSubjectID = local_prepare_qsirecon_freesurfer_aliases(FreesurferInput, SubjectIDCell)
+FreeSurferSubjectID = cell(length(SubjectIDCell),1);
+
+if isempty(FreesurferInput) || ~exist(FreesurferInput,'dir')
+    return;
+end
+
+for iSubject=1:length(SubjectIDCell)
+    FreeSurferSubjectID{iSubject} = local_resolve_freesurfer_subject_id(FreesurferInput, SubjectIDCell{iSubject});
+    if isempty(FreeSurferSubjectID{iSubject})
+        continue;
+    end
+
+    if ~strcmpi(FreeSurferSubjectID{iSubject}, SubjectIDCell{iSubject}) && ~exist(fullfile(FreesurferInput, SubjectIDCell{iSubject}),'dir')
+        local_create_freesurfer_subject_alias(FreesurferInput, FreeSurferSubjectID{iSubject}, SubjectIDCell{iSubject});
+    end
+end
+end
+
+
+
+function FreeSurferSubjectID = local_resolve_freesurfer_subject_id(FreesurferInput, SubjectID)
+FreeSurferSubjectID = '';
+
+if exist(fullfile(FreesurferInput, SubjectID),'dir')
+    FreeSurferSubjectID = SubjectID;
+    return;
+end
+
+if exist(fullfile(FreesurferInput, [SubjectID, '_ses-1']),'dir')
+    FreeSurferSubjectID = [SubjectID, '_ses-1'];
+    return;
+end
+
+DirFS = dir(fullfile(FreesurferInput, [SubjectID, '_ses-*']));
+DirFS = DirFS([DirFS.isdir]);
+if isempty(DirFS)
+    return;
+end
+
+FreeSurferSubjectID = DirFS(1).name;
+end
+
+
+
+function local_create_freesurfer_subject_alias(FreesurferInput, SourceSubjectID, TargetSubjectID)
+SourceDir = fullfile(FreesurferInput, SourceSubjectID);
+TargetDir = fullfile(FreesurferInput, TargetSubjectID);
+
+if exist(TargetDir,'dir')
+    return;
+end
+
+if ispc
+    Command = sprintf('cmd /c mklink /J "%s" "%s"', TargetDir, SourceDir);
+else
+    Command = sprintf('ln -s "%s" "%s"', SourceSubjectID, TargetDir);
+end
+[Status, Output] = system(Command);
+
+if (Status~=0) && ~exist(TargetDir,'dir')
+    error('Failed to create FreeSurfer subject alias from %s to %s: %s', TargetSubjectID, SourceSubjectID, Output);
+end
+end
 
