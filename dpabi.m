@@ -22,7 +22,7 @@ function varargout = dpabi(varargin)
 
 % Edit the above text to modify the response to help dpabi
 
-% Last Modified by GUIDE v2.5 12-Apr-2025 12:17:18
+% Last Modified by GUIDE v2.5 21-May-2026 13:46:51
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -252,3 +252,11 @@ function pushbuttonDPABIDICOMSorted_Callback(hObject, eventdata, handles)
 
 DPABI_DCMSORTER_TOOL
 
+
+
+% --- Executes on button press in pushbuttonGradientAnalysis.
+function pushbuttonGradientAnalysis_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbuttonGradientAnalysis (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+dpabi_Gradient

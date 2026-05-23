@@ -22,7 +22,7 @@ function varargout = DPABINet(varargin)
 
 % Edit the above text to modify the response to help DPABINet
 
-% Last Modified by GUIDE v2.5 27-Sep-2023 11:23:51
+% Last Modified by GUIDE v2.5 21-May-2026 13:49:22
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -182,3 +182,11 @@ function pushbuttonHarmonization_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 DPABI_Harmonization
+
+
+% --- Executes on button press in pushbuttonSFC.
+function pushbuttonSFC_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbuttonSFC (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+DPABI_SFC
