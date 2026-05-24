@@ -3398,15 +3398,15 @@ for iSub = 1:length(handles.Cfg.SubList)
             mkdir(T1PlusOutputDir);
             try
                 if ~strcmp(handles.Cfg.InputList.T1Plus{iSession}{iSub},'PseudoSeries')
-                    copyfile(handles.Cfg.InputList.T1Plus{iSession}{iSub},T1PlusOutputDir);
+                    copyfile(DPABI_ValidateSourceDir(handles.Cfg.InputList.T1Plus{iSession}{iSub},T1PlusOutputDir),T1PlusOutputDir);
                 else
-                    copyfile(handles.Cfg.T1PlusPseudo{iSession},T1PlusOutputDir);
+                    copyfile(DPABI_ValidateSourceDir(handles.Cfg.T1PlusPseudo{iSession},T1PlusOutputDir),T1PlusOutputDir);
                 end
             catch
                 if ~strcmp(handles.Cfg.InputList.T1Plus{iSession}{iSub},'PseudoSeries')
-                    dos(['for file in "',handles.Cfg.InputList.T1Plus{iSession}{iSub},'"/*; do cp -- "$file" "',T1PlusOutputDir,'" ; done']);
+                    DPABI_CopyDirectoryContents(handles.Cfg.InputList.T1Plus{iSession}{iSub},T1PlusOutputDir);
                 else
-                    dos(['for file in "',handles.Cfg.T1PlusPseudo{iSession},'"/*; do cp -- "$file" "',T1PlusOutputDir,'" ; done']);
+                    DPABI_CopyDirectoryContents(handles.Cfg.T1PlusPseudo{iSession},T1PlusOutputDir);
                 end
             end
         end
@@ -3415,15 +3415,15 @@ for iSub = 1:length(handles.Cfg.SubList)
         mkdir(T1OutputDir);
         try
             if ~strcmp(handles.Cfg.InputList.T1{iSub},'PseudoSeries')
-                copyfile(handles.Cfg.InputList.T1{iSub},T1OutputDir);
+                copyfile(DPABI_ValidateSourceDir(handles.Cfg.InputList.T1{iSub},T1OutputDir),T1OutputDir);
             else
-                copyfile(handles.Cfg.T1Pseudo,T1OutputDir);
+                copyfile(DPABI_ValidateSourceDir(handles.Cfg.T1Pseudo,T1OutputDir),T1OutputDir);
             end
         catch % Mac OS error: cp: Argument list too long
             if ~strcmp(handles.Cfg.InputList.T1{iSub},'PseudoSeries')
-                dos(['for file in "',handles.Cfg.InputList.T1{iSub},'"/*; do cp -- "$file" "',T1OutputDir,'" ; done']);
+                DPABI_CopyDirectoryContents(handles.Cfg.InputList.T1{iSub},T1OutputDir);
             else
-                dos(['for file in "',handles.Cfg.T1Pseudo,'"/*; do cp -- "$file" "',T1OutputDir,'" ; done']);
+                DPABI_CopyDirectoryContents(handles.Cfg.T1Pseudo,T1OutputDir);
             end
         end
     end
@@ -3434,9 +3434,9 @@ for iSub = 1:length(handles.Cfg.SubList)
             mkdir(T2OutputDir);
             try
                 if ~strcmp(handles.Cfg.InputList.T2{iSub},'PseudoSeries')
-                    copyfile(handles.Cfg.InputList.T2{iSub},T2OutputDir);
+                    copyfile(DPABI_ValidateSourceDir(handles.Cfg.InputList.T2{iSub},T2OutputDir),T2OutputDir);
                 else
-                    copyfile(handles.Cfg.T2Pseudo,T2OutputDir);
+                    copyfile(DPABI_ValidateSourceDir(handles.Cfg.T2Pseudo,T2OutputDir),T2OutputDir);
                 end
             catch
                 if MacFlag == 0
@@ -3445,9 +3445,9 @@ for iSub = 1:length(handles.Cfg.SubList)
                     MacFlag = 1;
                 end
                 if ~strcmp(handles.Cfg.InputList.T2{iSub},'PseudoSeries')
-                    dos(['for file in "',handles.Cfg.InputList.T2{iSub},'"/*; do cp -- "$file" "',T2OutputDir,'" ; done']);
+                    DPABI_CopyDirectoryContents(handles.Cfg.InputList.T2{iSub},T2OutputDir);
                 else
-                    dos(['for file in "',handles.Cfg.T2Pseudo,'"/*; do cp -- "$file" "',T2OutputDir,'" ; done']);
+                    DPABI_CopyDirectoryContents(handles.Cfg.T2Pseudo,T2OutputDir);
                 end
             end
         end
@@ -3456,9 +3456,9 @@ for iSub = 1:length(handles.Cfg.SubList)
             mkdir(DwiOutputDir);
             try
                 if ~strcmp(handles.Cfg.InputList.Dwi{iSub},'PseudoSeries')
-                    copyfile(handles.Cfg.InputList.Dwi{iSub},DwiOutputDir);
+                    copyfile(DPABI_ValidateSourceDir(handles.Cfg.InputList.Dwi{iSub},DwiOutputDir),DwiOutputDir);
                 else
-                    copyfile(handles.Cfg.DwiPseudo,DwiOutputDir);
+                    copyfile(DPABI_ValidateSourceDir(handles.Cfg.DwiPseudo,DwiOutputDir),DwiOutputDir);
                 end
             catch
                 if MacFlag == 0
@@ -3467,9 +3467,9 @@ for iSub = 1:length(handles.Cfg.SubList)
                     MacFlag = 1;
                 end
                 if ~strcmp(handles.Cfg.InputList.Dwi{iSub},'PseudoSeries')
-                    dos(['for file in "',handles.Cfg.InputList.Dwi{iSub},'"/*; do cp -- "$file" "',DwiOutputDir,'" ; done']);
+                    DPABI_CopyDirectoryContents(handles.Cfg.InputList.Dwi{iSub},DwiOutputDir);
                 else
-                    dos(['for file in "',handles.Cfg.DwiPseudo,'"/*; do cp -- "$file" "',DwiOutputDir,'" ; done']);
+                    DPABI_CopyDirectoryContents(handles.Cfg.DwiPseudo,DwiOutputDir);
                 end
             end
         end
@@ -3479,15 +3479,15 @@ for iSub = 1:length(handles.Cfg.SubList)
                 mkdir(FieldFunOutputDir);
                 try
                     if ~strcmp(handles.Cfg.InputList.FieldFun{iSession}{iSub},'PseudoSeries')
-                        copyfile(handles.Cfg.InputList.FieldFun{iSession}{iSub},FieldFunOutputDir);
+                        copyfile(DPABI_ValidateSourceDir(handles.Cfg.InputList.FieldFun{iSession}{iSub},FieldFunOutputDir),FieldFunOutputDir);
                     else
-                        copyfile(handles.Cfg.FieldFunPseudo{iSession},FieldFunOutputDir);
+                        copyfile(DPABI_ValidateSourceDir(handles.Cfg.FieldFunPseudo{iSession},FieldFunOutputDir),FieldFunOutputDir);
                     end
                 catch
                     if ~strcmp(handles.Cfg.InputList.FieldFun{iSession}{iSub},'PseudoSeries')
-                        dos(['for file in "',handles.Cfg.InputList.FieldFun{iSession}{iSub},'"/*; do cp -- "$file" "',FieldFunOutputDir,'" ; done']);
+                        DPABI_CopyDirectoryContents(handles.Cfg.InputList.FieldFun{iSession}{iSub},FieldFunOutputDir);
                     else
-                        dos(['for file in "',handles.Cfg.FieldFunPseudo{iSession},'"/*; do cp -- "$file" "',FieldFunOutputDir,'" ; done']);
+                        DPABI_CopyDirectoryContents(handles.Cfg.FieldFunPseudo{iSession},FieldFunOutputDir);
                     end
                 end
             end
@@ -3498,15 +3498,15 @@ for iSub = 1:length(handles.Cfg.SubList)
                 mkdir(FieldDwiOutputDir);
                 try
                     if ~strcmp(handles.Cfg.InputList.FieldDwi{iSession}{iSub},'PseudoSeries')
-                        copyfile(handles.Cfg.InputList.FieldDwi{iSession}{iSub},FieldDwiOutputDir);
+                        copyfile(DPABI_ValidateSourceDir(handles.Cfg.InputList.FieldDwi{iSession}{iSub},FieldDwiOutputDir),FieldDwiOutputDir);
                     else
-                        copyfile(handles.Cfg.FieldDwiPseudo{iSession},FieldDwiOutputDir);
+                        copyfile(DPABI_ValidateSourceDir(handles.Cfg.FieldDwiPseudo{iSession},FieldDwiOutputDir),FieldDwiOutputDir);
                     end
                 catch
                     if ~strcmp(handles.Cfg.InputList.FieldDwi{iSession}{iSub},'PseudoSeries')
-                        dos(['for file in "',handles.Cfg.InputList.FieldDwi{iSession}{iSub},'"/*; do cp -- "$file" "',FieldDwiOutputDir,'" ; done']);
+                        DPABI_CopyDirectoryContents(handles.Cfg.InputList.FieldDwi{iSession}{iSub},FieldDwiOutputDir);
                     else
-                        dos(['for file in "',handles.Cfg.FieldDwiPseudo{iSession},'"/*; do cp -- "$file" "',FieldDwiOutputDir,'" ; done']);
+                        DPABI_CopyDirectoryContents(handles.Cfg.FieldDwiPseudo{iSession},FieldDwiOutputDir);
                     end
                 end
             end
@@ -3527,15 +3527,15 @@ for iSub = 1:length(handles.Cfg.SubList)
                         mkdir(FunAllOutputDir);
                         try
                             if ~strcmp(EchoDirs{iEcho},'PseudoSeries')
-                                copyfile(EchoDirs{iEcho},FunAllOutputDir);
+                                copyfile(DPABI_ValidateSourceDir(EchoDirs{iEcho},FunAllOutputDir),FunAllOutputDir);
                             else
-                                copyfile(handles.Cfg.FunAllPseudoME{iSession}{iEcho},FunAllOutputDir);
+                                copyfile(DPABI_ValidateSourceDir(handles.Cfg.FunAllPseudoME{iSession}{iEcho},FunAllOutputDir),FunAllOutputDir);
                             end
                         catch
                             if ~strcmp(EchoDirs{iEcho},'PseudoSeries')
-                                dos(['for file in "',EchoDirs{iEcho},'"/*; do cp -- "$file" "',FunAllOutputDir,'" ; done']);
+                                DPABI_CopyDirectoryContents(EchoDirs{iEcho},FunAllOutputDir);
                             else
-                                dos(['for file in "',handles.Cfg.FunAllPseudoME{iSession}{iEcho},'"/*; do cp -- "$file" "',FunAllOutputDir,'" ; done']);
+                                DPABI_CopyDirectoryContents(handles.Cfg.FunAllPseudoME{iSession}{iEcho},FunAllOutputDir);
                             end
                         end
                     end
@@ -3544,15 +3544,15 @@ for iSub = 1:length(handles.Cfg.SubList)
                     mkdir(FunAllOutputDir);
                     try
                         if ~strcmp(handles.Cfg.InputList.FunAll{iSession}{iSub},'PseudoSeries')
-                            copyfile(handles.Cfg.InputList.FunAll{iSession}{iSub},FunAllOutputDir);
+                            copyfile(DPABI_ValidateSourceDir(handles.Cfg.InputList.FunAll{iSession}{iSub},FunAllOutputDir),FunAllOutputDir);
                         else
-                            copyfile(handles.Cfg.FunAllPseudo{iSession},FunAllOutputDir);
+                            copyfile(DPABI_ValidateSourceDir(handles.Cfg.FunAllPseudo{iSession},FunAllOutputDir),FunAllOutputDir);
                         end
                     catch
                         if ~strcmp(handles.Cfg.InputList.FunAll{iSession}{iSub},'PseudoSeries')
-                            dos(['for file in "',handles.Cfg.InputList.FunAll{iSession}{iSub},'"/*; do cp -- "$file" "',FunAllOutputDir,'" ; done']);
+                            DPABI_CopyDirectoryContents(handles.Cfg.InputList.FunAll{iSession}{iSub},FunAllOutputDir);
                         else
-                            dos(['for file in "',handles.Cfg.FunAllPseudo{iSession},'"/*; do cp -- "$file" "',FunAllOutputDir,'" ; done']);
+                            DPABI_CopyDirectoryContents(handles.Cfg.FunAllPseudo{iSession},FunAllOutputDir);
                         end
                     end
                 end
@@ -3566,15 +3566,15 @@ for iSub = 1:length(handles.Cfg.SubList)
                     mkdir(FunSBRefOutputDir);
                     try
                         if ~strcmp(handles.Cfg.InputList.FunSBRef{iSession}{iSub},'PseudoSeries')
-                            copyfile(handles.Cfg.InputList.FunSBRef{iSession}{iSub},FunSBRefOutputDir);
+                            copyfile(DPABI_ValidateSourceDir(handles.Cfg.InputList.FunSBRef{iSession}{iSub},FunSBRefOutputDir),FunSBRefOutputDir);
                         else
-                            copyfile(handles.Cfg.FunSBRefPseudo{iSession},FunSBRefOutputDir);
+                            copyfile(DPABI_ValidateSourceDir(handles.Cfg.FunSBRefPseudo{iSession},FunSBRefOutputDir),FunSBRefOutputDir);
                         end
                     catch
                         if ~strcmp(handles.Cfg.InputList.FunSBRef{iSession}{iSub},'PseudoSeries')
-                            dos(['for file in "',handles.Cfg.InputList.FunSBRef{iSession}{iSub},'"/*; do cp -- "$file" "',FunSBRefOutputDir,'" ; done']);
+                            DPABI_CopyDirectoryContents(handles.Cfg.InputList.FunSBRef{iSession}{iSub},FunSBRefOutputDir);
                         else
-                            dos(['for file in "',handles.Cfg.FunSBRefPseudo{iSession},'"/*; do cp -- "$file" "',FunSBRefOutputDir,'" ; done']);
+                            DPABI_CopyDirectoryContents(handles.Cfg.FunSBRefPseudo{iSession},FunSBRefOutputDir);
                         end
                     end
                 end
@@ -3587,6 +3587,91 @@ end
 disp([newline,'DICOM format files have been organized!',newline])
 guidata(hObject,handles);
 
+
+function SourceDir = DPABI_ValidateSourceDir(SourceDir, OutputDir)
+%% Validate a DICOM source before copyfile or shell-style fallback copy.
+if isa(SourceDir,'string')
+    SourceDir = char(SourceDir);
+end
+if isa(OutputDir,'string')
+    OutputDir = char(OutputDir);
+end
+[SeriesName, SubjectName] = DPABI_GetCopyContext(OutputDir);
+if isempty(SourceDir)
+    error('DPABI_InputPreparer:EmptySourceDir', ...
+        'The source series "%s" for subject "%s" is not defined. Please check the selected input series or pseudo-series setting. Output directory: %s', SeriesName, SubjectName, OutputDir);
+end
+if ~ischar(SourceDir)
+    error('DPABI_InputPreparer:InvalidSourceDir', ...
+        'The source series "%s" for subject "%s" is invalid. Please check the selected input series or pseudo-series setting. Output directory: %s', SeriesName, SubjectName, OutputDir);
+end
+if strcmp(SourceDir,filesep)
+    error('DPABI_InputPreparer:RootSourceDir', ...
+        'Refusing to copy source series "%s" for subject "%s" from the system root directory: %s', SeriesName, SubjectName, SourceDir);
+end
+if exist(SourceDir,'dir') ~= 7
+    error('DPABI_InputPreparer:SourceDirNotFound', ...
+        'Cannot copy source series "%s" for subject "%s" because the source directory does not exist: %s', SeriesName, SubjectName, SourceDir);
+end
+if exist(OutputDir,'dir') ~= 7
+    mkdir(OutputDir);
+end
+
+
+function DPABI_CopyDirectoryContents(SourceDir, OutputDir)
+%% Copy directory contents one by one, avoiding shell wildcard expansion.
+SourceDir = DPABI_ValidateSourceDir(SourceDir, OutputDir);
+[SeriesName, SubjectName] = DPABI_GetCopyContext(OutputDir);
+
+FileList = dir(SourceDir);
+FileNames = {FileList.name};
+FileList = FileList(~ismember(FileNames,{'.','..','.DS_Store'}));
+if isempty(FileList)
+    error('DPABI_InputPreparer:NoSourceFiles', ...
+        'Cannot copy source series "%s" for subject "%s" because the source directory is empty: %s', SeriesName, SubjectName, SourceDir);
+end
+
+for iFile = 1:length(FileList)
+    SourceFile = fullfile(SourceDir,FileList(iFile).name);
+    [CopyStatus,Msg,MsgID] = copyfile(SourceFile,OutputDir);
+    if ~CopyStatus
+        if isempty(MsgID)
+            MsgID = 'DPABI_InputPreparer:CopyFailed';
+        end
+        error(MsgID, ...
+            'Failed to copy "%s" to "%s": %s', SourceFile, OutputDir, Msg);
+    end
+end
+
+
+function [SeriesName, SubjectName] = DPABI_GetCopyContext(OutputDir)
+%% Infer series and subject names from a DPABI-format output directory.
+SeriesName = 'UnknownSeries';
+SubjectName = 'UnknownSubject';
+if isa(OutputDir,'string')
+    OutputDir = char(OutputDir);
+end
+if isempty(OutputDir) || ~ischar(OutputDir)
+    return
+end
+
+PathParts = strsplit(OutputDir,filesep);
+PathParts = PathParts(~cellfun('isempty',PathParts));
+if length(PathParts) < 2
+    return
+end
+
+LastPart = PathParts{end};
+if strncmp(LastPart,'FunEcho',7) && length(PathParts) >= 3
+    SubjectName = PathParts{end-1};
+    SeriesName = [PathParts{end-2},filesep,LastPart];
+elseif strncmp(PathParts{end-1},'Folder',6) && length(PathParts) >= 3
+    SubjectName = LastPart;
+    SeriesName = [PathParts{end-2},filesep,PathParts{end-1}];
+else
+    SubjectName = LastPart;
+    SeriesName = PathParts{end-1};
+end
 
 
 function CheckFileOperatorNumber(hObject, handles)
@@ -3623,6 +3708,22 @@ guidata(hObject,handles);
 
 
 
+function InputFilename = DPABI_GetFirstDicomItem(RawDir)
+%% Get a real DICOM item, ignoring OS-generated directory entries.
+DirDCM = dir(fullfile(RawDir,'*'));
+if isempty(DirDCM)
+    error('DPABI_InputPreparer:NoDicomInput', ...
+        'Cannot find DICOM files because the raw directory does not exist or is empty: %s', RawDir);
+end
+FileNames = {DirDCM.name};
+DirDCM = DirDCM(~ismember(FileNames,{'.','..','.DS_Store'}));
+if isempty(DirDCM)
+    error('DPABI_InputPreparer:NoDicomInput', ...
+        'Cannot find DICOM files in raw directory: %s', RawDir);
+end
+InputFilename = fullfile(RawDir,DirDCM(1).name);
+
+
 function DCM2NII(hObject, handles)
 %% Run DCM2NII.
 if handles.Cfg.IsChangeSubID
@@ -3644,8 +3745,7 @@ if isfield(handles.Cfg,'IsUIH5T') && handles.Cfg.IsUIH5T
         for iSub=1:length(handles.Cfg.SubList)
             OutputDir=[handles.Cfg.OutputDir,filesep,NIFTIName,filesep,SubjectID{iSub}];
             mkdir(OutputDir);
-            DirDCM=dir([handles.Cfg.OutputDir,filesep,DCMName,filesep,SubjectID{iSub},filesep,'*']);
-            InputFilename=[handles.Cfg.OutputDir,filesep,DCMName,filesep,SubjectID{iSub},filesep,DirDCM(handles.Cfg.nFileOperator+1).name];
+            InputFilename=DPABI_GetFirstDicomItem(fullfile(handles.Cfg.OutputDir,DCMName,SubjectID{iSub}));
             y_Call_dcm2nii(InputFilename, OutputDir, 'DefaultINI');
             fprintf(['Converting ',NIFTIName,': ',SubjectID{iSub},' OK']);
         end
@@ -3655,8 +3755,7 @@ else
     for iSub=1:length(handles.Cfg.SubList)
         OutputDir=[handles.Cfg.OutputDir,filesep,'T1Img',filesep,SubjectID{iSub}];
         mkdir(OutputDir);
-        DirDCM=dir([handles.Cfg.OutputDir,filesep,'T1Raw',filesep,SubjectID{iSub},filesep,'*']); %Revised by YAN Chao-Gan 100130. %DirDCM=dir([handles.Cfg.OutputDir,filesep,'FunRaw',filesep,SubjectID{i},filesep,'*.*']);
-        InputFilename=[handles.Cfg.OutputDir,filesep,'T1Raw',filesep,SubjectID{iSub},filesep,DirDCM(handles.Cfg.nFileOperator+1).name];
+        InputFilename=DPABI_GetFirstDicomItem(fullfile(handles.Cfg.OutputDir,'T1Raw',SubjectID{iSub}));
         %YAN Chao-Gan 120817.
         y_Call_dcm2nii(InputFilename, OutputDir, 'DefaultINI');
         fprintf(['Converting T1 Images: ',SubjectID{iSub},' OK']);
@@ -3668,8 +3767,7 @@ if handles.Cfg.IsOrganizeT2
     for iSub=1:length(handles.Cfg.SubList)
         OutputDir=[handles.Cfg.OutputDir,filesep,'T2Img',filesep,SubjectID{iSub}];
         mkdir(OutputDir);
-        DirDCM=dir([handles.Cfg.OutputDir,filesep,'T2Raw',filesep,SubjectID{iSub},filesep,'*']); %Revised by YAN Chao-Gan 100130. %DirDCM=dir([handles.Cfg.OutputDir,filesep,'FunRaw',filesep,SubjectID{i},filesep,'*.*']);
-        InputFilename=[handles.Cfg.OutputDir,filesep,'T2Raw',filesep,SubjectID{iSub},filesep,DirDCM(handles.Cfg.nFileOperator+1).name];
+        InputFilename=DPABI_GetFirstDicomItem(fullfile(handles.Cfg.OutputDir,'T2Raw',SubjectID{iSub}));
         %YAN Chao-Gan 120817.
         y_Call_dcm2nii(InputFilename, OutputDir, 'DefaultINI');
         fprintf(['Converting DWI Images: ',SubjectID{iSub},' OK']);
@@ -3681,8 +3779,7 @@ if handles.Cfg.IsOrganizeDwi
     for iSub=1:length(handles.Cfg.SubList)
         OutputDir=[handles.Cfg.OutputDir,filesep,'DwiImg',filesep,SubjectID{iSub}];
         mkdir(OutputDir);
-        DirDCM=dir([handles.Cfg.OutputDir,filesep,'DwiRaw',filesep,SubjectID{iSub},filesep,'*']); %Revised by YAN Chao-Gan 100130. %DirDCM=dir([handles.Cfg.OutputDir,filesep,'FunRaw',filesep,SubjectID{i},filesep,'*.*']);
-        InputFilename=[handles.Cfg.OutputDir,filesep,'DwiRaw',filesep,SubjectID{iSub},filesep,DirDCM(handles.Cfg.nFileOperator+1).name];
+        InputFilename=DPABI_GetFirstDicomItem(fullfile(handles.Cfg.OutputDir,'DwiRaw',SubjectID{iSub}));
         %YAN Chao-Gan 120817.
         y_Call_dcm2nii(InputFilename, OutputDir, 'DefaultINI');
         fprintf(['Converting DWI Images: ',SubjectID{iSub},' OK']);
@@ -3695,8 +3792,7 @@ if handles.Cfg.IsOrganizeFieldFun
         for iSub=1:length(handles.Cfg.SubList)
             OutputDir=[handles.Cfg.OutputDir,filesep,'FunFieldMapTemp',filesep,SubjectID{iSub}];
             mkdir(OutputDir);
-            DirDCM=dir([handles.Cfg.OutputDir,filesep,'FunFieldMapRaw',filesep,'Folder',num2str(iSession),filesep,SubjectID{iSub},filesep,'*']); %Revised by YAN Chao-Gan 100130. %DirDCM=dir([handles.Cfg.OutputDir,filesep,'FunRaw',filesep,SubjectID{i},filesep,'*.*']);
-            InputFilename=[handles.Cfg.OutputDir,filesep,'FunFieldMapRaw',filesep,'Folder',num2str(iSession),filesep,SubjectID{iSub},filesep,DirDCM(handles.Cfg.nFileOperator+1).name];
+            InputFilename=DPABI_GetFirstDicomItem(fullfile(handles.Cfg.OutputDir,'FunFieldMapRaw',['Folder',num2str(iSession)],SubjectID{iSub}));
             %YAN Chao-Gan 120817.
             y_Call_dcm2nii(InputFilename, OutputDir, 'DefaultINI');
             fprintf(['Converting DICOM fMRI FieldMaps to NIFTI files: ',SubjectID{iSub},' OK']);
@@ -3711,8 +3807,7 @@ if handles.Cfg.IsOrganizeFieldDwi
         for iSub=1:length(handles.Cfg.SubList)
             OutputDir=[handles.Cfg.OutputDir,filesep,'DwiFieldMapTemp',filesep,SubjectID{iSub}];
             mkdir(OutputDir);
-            DirDCM=dir([handles.Cfg.OutputDir,filesep,'DwiFieldMapRaw',filesep,'Folder',num2str(iSession),filesep,SubjectID{iSub},filesep,'*']); %Revised by YAN Chao-Gan 100130. %DirDCM=dir([handles.Cfg.OutputDir,filesep,'FunRaw',filesep,SubjectID{i},filesep,'*.*']);
-            InputFilename=[handles.Cfg.OutputDir,filesep,'DwiFieldMapRaw',filesep,'Folder',num2str(iSession),filesep,SubjectID{iSub},filesep,DirDCM(handles.Cfg.nFileOperator+1).name];
+            InputFilename=DPABI_GetFirstDicomItem(fullfile(handles.Cfg.OutputDir,'DwiFieldMapRaw',['Folder',num2str(iSession)],SubjectID{iSub}));
             %YAN Chao-Gan 120817.
             y_Call_dcm2nii(InputFilename, OutputDir, 'DefaultINI');
             fprintf(['Converting DICOM DWI FieldMaps to NIFTI files: ',SubjectID{iSub},' OK']);
@@ -3737,8 +3832,7 @@ if handles.Cfg.IsOrganizeFun
                 y_Call_dcm2nii(DirAllEcho, OutputDir, 'DefaultINI');
                 fprintf(['Converting ',Prefix,'FunImg (multi-echo): ',SubjectID{iSub},' OK']);
             else
-                DirDCM=dir([handles.Cfg.OutputDir,filesep,Prefix,'FunRaw',filesep,SubjectID{iSub},filesep,'*']);
-                InputFilename=[handles.Cfg.OutputDir,filesep,Prefix,'FunRaw',filesep,SubjectID{iSub},filesep,DirDCM(handles.Cfg.nFileOperator+1).name];
+                InputFilename=DPABI_GetFirstDicomItem(fullfile(handles.Cfg.OutputDir,[Prefix,'FunRaw'],SubjectID{iSub}));
                 y_Call_dcm2nii(InputFilename, OutputDir, 'DefaultINI');
                 fprintf(['Converting ',Prefix,'FunImg: ',SubjectID{iSub},' OK']);
             end
@@ -3759,8 +3853,7 @@ if handles.Cfg.IsOrganizeFun && isfield(handles.Cfg,'IsFunAllRef') && handles.Cf
         for iSub=1:length(handles.Cfg.SubList)
             OutputDir=[handles.Cfg.OutputDir,filesep,Prefix,'FunSBREFImg',filesep,SubjectID{iSub}];
             mkdir(OutputDir);
-            DirDCM=dir([handles.Cfg.OutputDir,filesep,Prefix,'FunSBREFRaw',filesep,SubjectID{iSub},filesep,'*']);
-            InputFilename=[handles.Cfg.OutputDir,filesep,Prefix,'FunSBREFRaw',filesep,SubjectID{iSub},filesep,DirDCM(handles.Cfg.nFileOperator+1).name];
+            InputFilename=DPABI_GetFirstDicomItem(fullfile(handles.Cfg.OutputDir,[Prefix,'FunSBREFRaw'],SubjectID{iSub}));
             y_Call_dcm2nii(InputFilename, OutputDir, 'DefaultINI');
             fprintf(['Converting ',Prefix,'FunSBREFImg: ',SubjectID{iSub},' OK']);
         end
