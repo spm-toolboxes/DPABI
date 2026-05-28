@@ -186,9 +186,8 @@ if (Cfg.Isqsiprep==1)
 
 
     %Chao-Gan Yan, 20260125. Convert freesurfer aparcaseg files to qsiprep ACPC space
-    local_prepare_session_anat_aliases(fullfile(Cfg.WorkingDir,'qsiprep'), Cfg.SubjectID);
-    local_prepare_session_anat_aliases(fullfile(Cfg.WorkingDir,'fmriprep'), Cfg.SubjectID);
-    local_prepare_session_dwi_aliases(fullfile(Cfg.WorkingDir,'qsiprep'), Cfg.SubjectID);
+    local_cleanup_session_aliases_for_qsirecon(fullfile(Cfg.WorkingDir,'qsiprep'), Cfg.SubjectID);
+    local_cleanup_session_aliases_for_qsirecon(fullfile(Cfg.WorkingDir,'fmriprep'), Cfg.SubjectID);
     AparcasegSourceFileSet = local_prepare_t1w_aparcaseg_aliases(fullfile(Cfg.WorkingDir,'Results','AnatVolu','T1wSpace'), Cfg.SubjectID);
     HasAparcasegSource = cellfun(@(FileName) ~isempty(FileName) && (2==exist(FileName,'file')), AparcasegSourceFileSet);
 
@@ -196,15 +195,28 @@ if (Cfg.Isqsiprep==1)
         if ~all(HasAparcasegSource)
             error('T1w aparcaseg source file does not exist for: %s', strjoin(Cfg.SubjectID(~HasAparcasegSource), ', '));
         end
-        Command = sprintf('%s cgyan/qsiprep bash -lc ''parallel --quote -j 1 bash -lc "antsRegistrationSyNQuick.sh -d 3 -f %s/qsiprep/{1}/anat/{1}_space-ACPC_desc-preproc_T1w.nii.gz -m %s/fmriprep/{1}/anat/{1}_desc-preproc_T1w.nii.gz -t a -o %s/Results/AnatVolu/T1wSpace/{1}/{1}_fmriprepT1_to_qsiprepACPC_"',CommandInit,WorkingDir,WorkingDir,WorkingDir);
-        Command = sprintf('%s ::: %s''', Command, SubjectIDString);
-        fprintf('Calculate T1 -> ACPC, please wait...\n');
-        system(Command);
+        RefFile=[Cfg.WorkingDir,filesep,'qsiprep',filesep,Cfg.SubjectID{1},filesep,'dwi',filesep,Cfg.SubjectID{1},'_space-ACPC_desc-preproc_dwi.b'];
+        if (2==exist(RefFile,'file'))
+            Command = sprintf('%s cgyan/qsiprep bash -lc ''parallel --quote -j 1 bash -lc "antsRegistrationSyNQuick.sh -d 3 -f %s/qsiprep/{1}/anat/{1}_space-ACPC_desc-preproc_T1w.nii.gz -m %s/fmriprep/{1}/anat/{1}_desc-preproc_T1w.nii.gz -t a -o %s/Results/AnatVolu/T1wSpace/{1}/{1}_fmriprepT1_to_qsiprepACPC_"',CommandInit,WorkingDir,WorkingDir,WorkingDir);
+            Command = sprintf('%s ::: %s''', Command, SubjectIDString);
+            fprintf('Calculate T1 -> ACPC, please wait...\n');
+            system(Command);
 
-        Command = sprintf('%s antsApplyTransforms -d 3 -i %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-T1w_desc-aparcaseg.nii.gz -r %s/qsiprep/{1}/anat/{1}_space-ACPC_desc-preproc_T1w.nii.gz -o %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-ACPC_desc-aparcaseg.nii.gz -n MultiLabel -t %s/Results/AnatVolu/T1wSpace/{1}/{1}_fmriprepT1_to_qsiprepACPC_0GenericAffine.mat',CommandParallelQsiprep,WorkingDir,WorkingDir,WorkingDir,WorkingDir);
-        Command = sprintf('%s ::: %s', Command, SubjectIDString);
-        fprintf('Transform space-T1w_desc-aparcaseg to _space-ACPC_desc-aparcaseg, please wait...\n');
-        system(Command);
+            Command = sprintf('%s antsApplyTransforms -d 3 -i %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-T1w_desc-aparcaseg.nii.gz -r %s/qsiprep/{1}/anat/{1}_space-ACPC_desc-preproc_T1w.nii.gz -o %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-ACPC_desc-aparcaseg.nii.gz -n MultiLabel -t %s/Results/AnatVolu/T1wSpace/{1}/{1}_fmriprepT1_to_qsiprepACPC_0GenericAffine.mat',CommandParallelQsiprep,WorkingDir,WorkingDir,WorkingDir,WorkingDir);
+            Command = sprintf('%s ::: %s', Command, SubjectIDString);
+            fprintf('Transform space-T1w_desc-aparcaseg to _space-ACPC_desc-aparcaseg, please wait...\n');
+            system(Command);
+        else
+            Command = sprintf('%s cgyan/qsiprep bash -lc ''parallel --quote -j 1 bash -lc "antsRegistrationSyNQuick.sh -d 3 -f %s/qsiprep/{1}/ses-1/anat/{1}_ses-1_space-ACPC_desc-preproc_T1w.nii.gz -m %s/fmriprep/{1}/ses-1/anat/{1}_ses-1_desc-preproc_T1w.nii.gz -t a -o %s/Results/AnatVolu/T1wSpace/{1}/{1}_fmriprepT1_to_qsiprepACPC_"',CommandInit,WorkingDir,WorkingDir,WorkingDir);
+            Command = sprintf('%s ::: %s''', Command, SubjectIDString);
+            fprintf('Calculate T1 -> ACPC, please wait...\n');
+            system(Command);
+
+            Command = sprintf('%s antsApplyTransforms -d 3 -i %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-T1w_desc-aparcaseg.nii.gz -r %s/qsiprep/{1}/ses-1/anat/{1}_ses-1_space-ACPC_desc-preproc_T1w.nii.gz -o %s/Results/AnatVolu/T1wSpace/{1}/{1}_space-ACPC_desc-aparcaseg.nii.gz -n MultiLabel -t %s/Results/AnatVolu/T1wSpace/{1}/{1}_fmriprepT1_to_qsiprepACPC_0GenericAffine.mat',CommandParallelQsiprep,WorkingDir,WorkingDir,WorkingDir,WorkingDir);
+            Command = sprintf('%s ::: %s', Command, SubjectIDString);
+            fprintf('Transform space-T1w_desc-aparcaseg to _space-ACPC_desc-aparcaseg, please wait...\n');
+            system(Command);
+        end
     end
 
 
@@ -216,8 +228,6 @@ end
 
 % Calculate DWI Tensor Metrics
 if (Cfg.IsCalTensorMetrics==1)
-    local_prepare_session_dwi_aliases(fullfile(Cfg.WorkingDir,'qsiprep'), Cfg.SubjectID);
-
     %dwi2tensor -grad /data/qsiprep/sub-Sub001/dwi/sub-Sub001_space-ACPC_desc-preproc_dwi.b -mask /data/qsiprep/sub-Sub001/dwi/sub-Sub001_space-ACPC_desc-brain_mask.nii.gz /data/qsiprep/sub-Sub001/dwi/sub-Sub001_space-ACPC_desc-preproc_dwi.nii.gz /data/Tensor/Tensor/sub-Sub001_space-ACPC_desc-preproc_dwitensor.nii.gz
     mkdir([Cfg.WorkingDir,filesep,'Results',filesep,'DwiVolu',filesep,'TensorMetrics',filesep,'Tensor']);
     
@@ -416,10 +426,6 @@ end
 
 % Process ROI Masks
 if ~isempty(Cfg.ROIDef)
-    local_prepare_session_anat_aliases(fullfile(Cfg.WorkingDir,'qsiprep'), Cfg.SubjectID);
-    local_prepare_session_anat_aliases(fullfile(Cfg.WorkingDir,'fmriprep'), Cfg.SubjectID);
-    local_prepare_session_dwi_aliases(fullfile(Cfg.WorkingDir,'qsiprep'), Cfg.SubjectID);
-
     if ~(7==exist([Cfg.WorkingDir,filesep,'Masks',filesep, 'MasksForDwi',filesep, 'Masks_DwiSpace'],'dir'))
         mkdir([Cfg.WorkingDir,filesep,'Masks',filesep, 'MasksForDwi',filesep, 'Masks_DwiSpace']);
     end
@@ -1309,6 +1315,129 @@ end
 
 fprintf(['\nCongratulations, the running of DPABIFiber is done!!! :)\n\n']);
 
+end
+
+
+
+function local_cleanup_session_aliases_for_qsirecon(DerivativesDir, SubjectIDCell)
+if isempty(DerivativesDir) || ~exist(DerivativesDir,'dir')
+    return;
+end
+
+for iSubject=1:length(SubjectIDCell)
+    SubjectDir = fullfile(DerivativesDir, SubjectIDCell{iSubject});
+    local_cleanup_session_alias_subdir(SubjectDir, 'anat', SubjectIDCell{iSubject});
+    local_cleanup_session_alias_subdir(SubjectDir, 'dwi', SubjectIDCell{iSubject});
+end
+end
+
+
+
+function local_cleanup_session_alias_subdir(SubjectDir, SubdirName, SubjectID)
+SubjectSubdir = fullfile(SubjectDir, SubdirName);
+SessionDir = fullfile(SubjectDir, 'ses-1');
+SessionSubdir = fullfile(SessionDir, SubdirName);
+FileSuffixCell = local_get_session_alias_suffixes(SubdirName);
+
+if local_is_symlink_path(SessionSubdir)
+    local_remove_symlink_path(SessionSubdir);
+end
+if local_is_symlink_path(SubjectSubdir)
+    local_remove_symlink_path(SubjectSubdir);
+end
+
+if exist(SubjectSubdir,'dir') && ~local_is_symlink_path(SubjectSubdir)
+    for iSuffix = 1:length(FileSuffixCell)
+        AliasFile = fullfile(SubjectSubdir, [SubjectID, '_ses-1', FileSuffixCell{iSuffix}]);
+        if local_is_symlink_path(AliasFile)
+            local_remove_symlink_path(AliasFile);
+        end
+    end
+end
+
+if exist(SessionSubdir,'dir') && ~local_is_symlink_path(SessionSubdir)
+    for iSuffix = 1:length(FileSuffixCell)
+        AliasFile = fullfile(SessionSubdir, [SubjectID, FileSuffixCell{iSuffix}]);
+        if local_is_symlink_path(AliasFile)
+            local_remove_symlink_path(AliasFile);
+        end
+    end
+end
+
+if exist(SessionDir,'dir')
+    DirSession = dir(fullfile(SessionDir, '*'));
+    DirSessionName = {DirSession.name};
+    DirSessionName = setdiff(DirSessionName, {'.','..'});
+    if isempty(DirSessionName)
+        rmdir(SessionDir);
+    end
+end
+end
+
+
+
+function FileSuffixCell = local_get_session_alias_suffixes(SubdirName)
+switch lower(SubdirName)
+    case 'anat'
+        FileSuffixCell = {
+            '_desc-preproc_T1w.nii.gz'
+            '_space-ACPC_desc-preproc_T1w.nii.gz'
+            '_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5'
+            '_from-ACPC_to-MNI152NLin2009cAsym_mode-image_xfm.h5'
+            };
+    case 'dwi'
+        FileSuffixCell = {
+            '_space-ACPC_desc-preproc_dwi.b'
+            '_space-ACPC_desc-preproc_dwi.nii.gz'
+            '_space-ACPC_desc-brain_mask.nii.gz'
+            '_space-ACPC_dwiref.nii.gz'
+            };
+    otherwise
+        FileSuffixCell = {};
+end
+end
+
+
+
+function IsSymlink = local_is_symlink_path(PathName)
+IsSymlink = false;
+
+if ~(exist(PathName,'file') || exist(PathName,'dir'))
+    return;
+end
+
+if ispc
+    return;
+else
+    [Status, ~] = system(sprintf('test -L "%s"', PathName));
+    IsSymlink = (Status == 0);
+end
+end
+
+
+
+function local_remove_symlink_path(PathName)
+if ~local_is_symlink_path(PathName)
+    return;
+end
+
+if ispc
+    if exist(PathName,'dir')
+        [Status, Message] = rmdir(PathName);
+        IsFailed = (Status == 0);
+    else
+        [Status, Message] = system(sprintf('cmd /c del /f /q "%s"', PathName));
+        IsFailed = (Status ~= 0);
+    end
+    if IsFailed
+        error('Failed to remove symlink path %s: %s', PathName, Message);
+    end
+else
+    [Status, Output] = system(sprintf('rm -f "%s"', PathName));
+    if (Status~=0) && (exist(PathName,'file') || exist(PathName,'dir'))
+        error('Failed to remove symlink path %s: %s', PathName, Output);
+    end
+end
 end
 
 
