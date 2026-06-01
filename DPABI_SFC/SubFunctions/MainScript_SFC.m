@@ -713,7 +713,7 @@ function output_files = SFC_writeSingleVectorView(value_vector, out_dir, prefix,
         % Do not keep the integer datatype of the atlas label image.
         SFC_writeFloatNifti(cortex_out, atlas_info.VolumeCortex.Header, out_file);
 
-        output_files{end+1, 1} = out_file; %#ok<AGROW>
+        output_files{end+1, 1} = out_file; 
 
         if atlas_info.HasSubcortex
             nS = atlas_info.Subcortex.Count;
@@ -723,12 +723,12 @@ function output_files = SFC_writeSingleVectorView(value_vector, out_dir, prefix,
                 atlas_info.Subcortex.Labels, ...
                 sub_values);
 
-            out_file = fullfile(out_dir, [prefix, '_Volume_Subcortical.nii']);
+            out_file = fullfile(out_dir, [prefix, '_Subcortical.nii']);
 
             % Write continuous regional values as floating-point NIfTI.
             SFC_writeFloatNifti(sub_out, atlas_info.Subcortex.Header, out_file);
 
-            output_files{end+1, 1} = out_file; %#ok<AGROW>
+            output_files{end+1, 1} = out_file; 
         end
     end
 
@@ -754,24 +754,8 @@ function output_files = SFC_writeSingleVectorView(value_vector, out_dir, prefix,
         SFC_writeFunctionalGifti(lh_out, out_file_lh);
         SFC_writeFunctionalGifti(rh_out, out_file_rh);
 
-        output_files{end+1, 1} = out_file_lh; %#ok<AGROW>
-        output_files{end+1, 1} = out_file_rh; %#ok<AGROW>
-
-        if atlas_info.HasSubcortex
-            nS = atlas_info.Subcortex.Count;
-            sub_values = value_vector(nC+1:nC+nS);
-            sub_out = SFC_fillVolumeAtlas( ...
-                atlas_info.Subcortex.Data, ...
-                atlas_info.Subcortex.Labels, ...
-                sub_values);
-
-            out_file = fullfile(out_dir, [prefix, '_SurfaceMode_Subcortical.nii']);
-
-            % Write continuous regional values as floating-point NIfTI.
-            SFC_writeFloatNifti(sub_out, atlas_info.Subcortex.Header, out_file);
-
-            output_files{end+1, 1} = out_file; %#ok<AGROW>
-        end
+        output_files{end+1, 1} = out_file_lh; 
+        output_files{end+1, 1} = out_file_rh; 
     end
 end
 
