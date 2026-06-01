@@ -90,7 +90,7 @@ figPos = get(hObject, 'Position');
 btnW = 130;
 btnH = 34;
 gap = 40;
-yPos = 14;
+yPos = 2;
 xStart = max((figPos(3) - 2 * btnW - gap) / 2, 10);
 
 handles.pushbuttonOK = uicontrol(hObject, ...

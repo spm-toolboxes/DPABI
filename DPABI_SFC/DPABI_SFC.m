@@ -2297,13 +2297,39 @@ if nargin < 2 || isempty(FigureHandle) || ~ishandle(FigureHandle)
     end
 end
 
-if SFC_isR2025OrLater()
-    SFC_applyGuideCompatR2025(FigureHandle);
-else
-    SFC_applyLegacyScale(handles, FigureHandle);
+% Keep GUIDE UI units stable across Windows, macOS, and Linux.
+try
+    set(FigureHandle, 'Units', 'pixels');
+    set(FigureHandle, 'Resize', 'off');
+catch
 end
 
-SFC_expandFigureToFitContents(FigureHandle);
+% Convert character-based controls to pixels to avoid OS-dependent stretching.
+ObjectHandles = findall(FigureHandle);
+for iHandle = 1:length(ObjectHandles)
+    h = ObjectHandles(iHandle);
+
+    if isequal(h, FigureHandle)
+        continue;
+    end
+
+    if isprop(h, 'Units')
+        try
+            set(h, 'Units', 'pixels');
+        catch
+        end
+    end
+
+    if isprop(h, 'FontUnits')
+        try
+            set(h, 'FontUnits', 'points');
+        catch
+        end
+    end
+end
+
+% Shrink or expand the figure to the actual visible GUI content.
+SFC_fitFigureToVisibleContents(FigureHandle);
 
 try
     movegui(FigureHandle, 'center');
@@ -2348,78 +2374,108 @@ for iHandle = 1:length(ObjectHandles)
 end
 end
 
-function SFC_applyLegacyScale(handles, FigureHandle)
-% Legacy GUIDE scaling path used by MATLAB R2024 and earlier.
-if ismac
-    ZoonMatrix = [1 1 1.2 1.2];  %For mac
-elseif ispc
-    ZoonMatrix = [1 1 1.3 1.3];  %For pc
-else
-    ZoonMatrix = [1 1 1.3 1.3];  %For Linux
-end
-UISize = get(FigureHandle, 'Position');
-UISize = UISize.*ZoonMatrix;
-set(FigureHandle, 'Position', UISize);
 
-% Make Display correct in Mac and linux
-if ~ispc
-    if ismac
-        ZoomFactor = 1.5;  %For Mac
-    else
-        ZoomFactor = 1;  %For Linux
-    end
-    ObjectNames = fieldnames(handles);
-    for iObject = 1:length(ObjectNames)
-        try
-            IsFontSizeProp = isprop(handles.(ObjectNames{iObject}), 'FontSize');
-        catch
-            IsFontSizeProp = 0;
-        end
-        if IsFontSizeProp
-            PCFontSize = get(handles.(ObjectNames{iObject}), 'FontSize');
-            FontSize = PCFontSize*ZoomFactor;
-            set(handles.(ObjectNames{iObject}), 'FontSize', FontSize);
-        end
-    end
-end
-end
+function SFC_fitFigureToVisibleContents(FigureHandle)
+% Fit the figure size to visible UI components.
+% This avoids large blank areas caused by oversized GUIDE canvas or
+% platform-specific UI scaling differences.
 
-function SFC_expandFigureToFitContents(FigureHandle)
 try
-    OriginalUnits = get(FigureHandle, 'Units');
+    oldUnits = get(FigureHandle, 'Units');
     set(FigureHandle, 'Units', 'pixels');
-    FigurePosition = get(FigureHandle, 'Position');
+    figPos = get(FigureHandle, 'Position');
 catch
     return;
 end
 
-Padding = 12;
-RequiredWidth = FigurePosition(3);
-RequiredHeight = FigurePosition(4);
+paddingLeft = 20;
+paddingRight = 25;
+paddingBottom = 25;
+paddingTop = 25;
+
+minX = inf;
+minY = inf;
+maxX = -inf;
+maxY = -inf;
+
 ObjectHandles = findall(FigureHandle);
 
 for iHandle = 1:length(ObjectHandles)
-    CurrentHandle = ObjectHandles(iHandle);
-    if isequal(CurrentHandle, FigureHandle) || ~isprop(CurrentHandle, 'Position')
+    h = ObjectHandles(iHandle);
+
+    if isequal(h, FigureHandle)
         continue;
     end
 
+    if ~isprop(h, 'Position')
+        continue;
+    end
+
+    if isprop(h, 'Visible')
+        try
+            if strcmpi(get(h, 'Visible'), 'off')
+                continue;
+            end
+        catch
+        end
+    end
+
+    % Ignore menus, context menus, and non-layout objects.
     try
-        ObjectPosition = getpixelposition(CurrentHandle, true);
+        objType = get(h, 'Type');
+        if any(strcmpi(objType, {'uimenu', 'uicontextmenu'}))
+            continue;
+        end
+    catch
+    end
+
+    try
+        p = getpixelposition(h, true);
     catch
         continue;
     end
 
-    RequiredWidth = max(RequiredWidth, ObjectPosition(1) + ObjectPosition(3) + Padding);
-    RequiredHeight = max(RequiredHeight, ObjectPosition(2) + ObjectPosition(4) + Padding);
+    if numel(p) ~= 4 || any(~isfinite(p)) || p(3) <= 0 || p(4) <= 0
+        continue;
+    end
+
+    minX = min(minX, p(1));
+    minY = min(minY, p(2));
+    maxX = max(maxX, p(1) + p(3));
+    maxY = max(maxY, p(2) + p(4));
 end
 
-FigurePosition(3) = ceil(RequiredWidth);
-FigurePosition(4) = ceil(RequiredHeight);
+if ~isfinite(minX) || ~isfinite(minY) || ~isfinite(maxX) || ~isfinite(maxY)
+    try
+        set(FigureHandle, 'Units', oldUnits);
+    catch
+    end
+    return;
+end
+
+newWidth = ceil(maxX + paddingRight);
+newHeight = ceil(maxY + paddingTop);
+
+% Keep a reasonable minimum size.
+newWidth = max(newWidth, 900);
+newHeight = max(newHeight, 760);
+
+% Clamp to screen size so the full GUI can be displayed on different systems.
+screenSize = get(0, 'ScreenSize');
+maxWidth = max(900, screenSize(3) - 80);
+maxHeight = max(760, screenSize(4) - 120);
+
+newWidth = min(newWidth, maxWidth);
+newHeight = min(newHeight, maxHeight);
+
+figPos(3) = newWidth;
+figPos(4) = newHeight;
+
+set(FigureHandle, 'Position', figPos);
 
 try
-    set(FigureHandle, 'Position', FigurePosition);
-    set(FigureHandle, 'Units', OriginalUnits);
+    set(FigureHandle, 'Units', oldUnits);
 catch
 end
 end
+
