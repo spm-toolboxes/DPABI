@@ -1,11 +1,10 @@
-FROM nipreps/fmriprep:24.1.1
+FROM nipreps/fmriprep:25.2.5
 
 MAINTAINER Chao-Gan Yan <ycg.yan@gmail.com>
 
-# Update system and istall pakages
-RUN apt-get -qq update
-RUN apt-get -qq install -y libdbus-1-dev; exit 0
-RUN dpkg --configure dbus
+# Update system and install packages
+RUN apt-get -qq update && \
+    apt-get -qq install -y --no-install-recommends libdbus-1-dev
     
 RUN apt-get -qq install -y x11vnc xvfb suckless-tools stterm parallel wget unzip time && \
     apt-get update
@@ -24,16 +23,16 @@ ENV XAUTHORITY /home/fmriprep/.Xauthority
 
 
 # Install MATLAB MCR
-ENV MATLAB_VERSION R2022b
+ENV MATLAB_VERSION R2024b
 RUN mkdir /opt/mcr_install && \
     mkdir /opt/mcr && \
-    wget --quiet -P /opt/mcr_install http://ssd.mathworks.com/supportfiles/downloads/R2022b/Release/0/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R2022b_glnxa64.zip && \
-    unzip -q /opt/mcr_install/MATLAB_Runtime_R2022b_glnxa64.zip -d /opt/mcr_install && \
+    wget --quiet -P /opt/mcr_install http://ssd.mathworks.com/supportfiles/downloads/R2024b/Release/0/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R2024b_glnxa64.zip && \
+    unzip -q /opt/mcr_install/MATLAB_Runtime_R2024b_glnxa64.zip -d /opt/mcr_install && \
     /opt/mcr_install/install -destinationFolder /opt/mcr -agreeToLicense yes -mode silent && \
     rm -rf /opt/mcr_install /tmp/*
 
 # Configure environment
-ENV MCR_VERSION R2022b
+ENV MCR_VERSION R2024b
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH/opt/mcr/${MCR_VERSION}/runtime/glnxa64:/opt/mcr/${MCR_VERSION}/bin/glnxa64:/opt/mcr/${MCR_VERSION}/sys/os/glnxa64:/opt/mcr/${MCR_VERSION}/sys/opengl/lib/glnxa64:/opt/mcr/${MCR_VERSION}/extern/bin/glnxa64
 ENV MCR_INHIBIT_CTF_LOCK 1
 ENV MCRPath /opt/mcr/${MCR_VERSION}
