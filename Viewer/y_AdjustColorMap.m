@@ -37,6 +37,9 @@ if exist('PN_Flag', 'var')==1
                 NewColorMap(Begin:End,:) = repmat(OriginalColorMap(iColor,:),[Segment 1]);
             end            
         elseif strcmpi(PN_Flag, '-')
+            if NMax==NMin
+                NMin=NMin-(NMax/10000);
+            end
             NegativeColorSegment = ceil(100000*(NMin-NMax)/(PMax-NMax)/(ColorLen));
             for iColor=1:ColorLen
                 Segment=NegativeColorSegment;
@@ -58,6 +61,9 @@ if exist('PN_Flag', 'var')==1
     end
 end
 
+if NMax==NMin
+    NMin=NMin-(NMax/10000);
+end
 NegativeColorSegment = ceil(100000*(NMin-NMax)/(PMax-NMax)/(ColorLen/2));
 for iColor=1:fix(ColorLen/2)
     Segment=NegativeColorSegment;
